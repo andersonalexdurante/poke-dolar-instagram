@@ -7,9 +7,9 @@ O **Poke-Dolar-Instagram** é um projeto desenvolvido para estudos pessoais, exp
 ## 🛠️ Tecnologias Utilizadas
 
 ### ⚙️ Backend
-- 🔥 **Quarkus** com **Java 23** e **GraalVM**, permitindo execução nativa e otimizada para cloud
+- 🔥 **Quarkus** com **Java 23** e **GraalVM**, explorando a capacidade de gerar **binários nativos** para reduzir consumo de recursos na AWS Lambda
 - ☁️ **AWS Lambda**, utilizando:
-    - 🏗️ Execução de uma imagem nativa gerada com GraalVM
+    - 🏗️ Execução de uma **imagem nativa** gerada com GraalVM, garantindo inicialização ultrarrápida e menor consumo de memória
     - 🐍 Um script em **Python** para geração dinâmica de imagens
     - 🔄 Um mecanismo de **refresh de token** para a API do Instagram
 - 🐳 **Docker**, utilizado para empacotamento e execução de aplicações nativas
