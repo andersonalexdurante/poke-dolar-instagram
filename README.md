@@ -1,8 +1,8 @@
 # Poke-Dolar-Instagram 👾💰
 
-O **Poke-Dolar-Instagram** é um projeto desenvolvido para estudos pessoais, explorando tecnologias modernas para automatizar a coleta da cotação do dólar e associá-la a um Pokémon correspondente, publicando o resultado diariamente no Instagram. 📈📸
+O **Poke-Dolar-Instagram** é um projeto desenvolvido para estudos pessoais, explorando tecnologias modernas para automatizar a coleta da cotação do dólar e associá-la a um Pokémon correspondente, publicando o resultado diariamente no Instagram. 📈📸 Siga a página e acompanhe a variação do dólar de uma maneira diferente: [@pokedolar.diario](https://www.instagram.com/p/DGEuXZNs-oR/ )
 
-📝 Este projeto foi inspirado no PokeDolar Bot para Twitter/X: https://github.com/PokeDolar/pokedolar_bot
+📝 _Este projeto foi inspirado no PokeDolar Bot para [Twitter/X](https://github.com/PokeDolar/pokedolar_bot)_
 
 ## 🛠️ Tecnologias Utilizadas
 
