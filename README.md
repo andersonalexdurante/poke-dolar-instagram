@@ -15,7 +15,7 @@ O **Poke-Dolar-Instagram** é um projeto desenvolvido para estudos pessoais, exp
 - 🐳 **Docker**, utilizado para empacotamento e execução de aplicações nativas
 
 ### ☁️ Infraestrutura e Cloud
-- 📦 **AWS S3** para armazenamento de imagens geradas
+- 📦 **AWS S3** para armazenamento de imagens dos pokémon
 - 📡 **AWS SNS e SSM** para gerenciamento de eventos e segurança
 - ⏰ **AWS EventBridge** para agendamento de execuções automatizadas
 
