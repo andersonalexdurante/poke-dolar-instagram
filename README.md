@@ -20,7 +20,7 @@ O **Poke-Dolar-Instagram** é um projeto desenvolvido para estudos pessoais, exp
 - ⏰ **AWS EventBridge** para agendamento de execuções automatizadas
 
 ### 🔗 Integrações e APIs
-- 🎭 **PokeAPI**, utilizada para obter dados sobre os Pokémon
+- 👾 **PokeAPI**, utilizada para obter dados sobre os Pokémon
 - 📲 **GraphAPI do Instagram**, utilizada para publicar as imagens de forma automatizada
 
 ## 🚀 Implantação e Funcionamento
