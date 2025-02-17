@@ -18,6 +18,7 @@ O **Poke-Dolar-Instagram** é um projeto desenvolvido para estudos pessoais, exp
 - 📦 **AWS S3** para armazenamento de imagens dos pokémon
 - 📡 **AWS SNS e SSM** para gerenciamento de eventos e segurança
 - ⏰ **AWS EventBridge** para agendamento de execuções automatizadas
+- ✨ **AWS Bedrock** é utilizado para gerar legendas dinâmicas e criativas para os posts com IA generativa, utilizando modelo Llama 3.3 70B Instruct da META
 
 ### 🔗 Integrações e APIs
 - 👾 **PokeAPI**, utilizada para obter dados sobre os Pokémon
@@ -30,8 +31,9 @@ O projeto é totalmente hospedado na AWS, onde os serviços são orquestrados pa
 1. ⏰ O **EventBridge** agenda a execução diária da Lambda principal.
 2. 💰 A Lambda principal coleta a cotação do dólar e determina o Pokémon correspondente.
 3. 🖼️ Um script em **Python**, executado por outra Lambda, gera uma imagem com as informações.
-4. 📂 A imagem gerada é armazenada no **S3** e publicada automaticamente via **GraphAPI do Instagram**.
-5. 🔄 O sistema mantém um mecanismo de **refresh de token**, garantindo a continuidade da autenticação na API do Instagram.
+4. ✨ AWS Bedrock cria a legenda do post com IA generativa.
+5. 📂 A imagem gerada é armazenada no **S3** e publicada automaticamente via **GraphAPI do Instagram**.
+6. 🔄 O sistema mantém um mecanismo de **refresh de token**, garantindo a continuidade da autenticação na API do Instagram.
 
 ## 🤝 Contribuição
 
@@ -43,5 +45,4 @@ Este projeto está sob a licença MIT. Consulte o arquivo `LICENSE` para mais in
 
 ---
 
-**👨‍💻 Autor:** [Seu Nome](https://github.com/seu-usuario)
-"""
+**👨‍💻 Autor:** Anderson Alex Durante (https://www.linkedin.com/in/andersonalexdurante/)
