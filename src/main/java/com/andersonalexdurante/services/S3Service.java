@@ -91,6 +91,7 @@ public class S3Service {
                             .getObjectRequest(getObjectRequest)
                             .build()
             );
+            LOGGER.info("[{}] Presigned URL generated successfully!", requestId);
             return presignedGetObjectRequest.url();
         } catch (Exception ex) {
             LOGGER.error("[{}] Failed to generate presigned URL. - {}", requestId, ex.getMessage(), ex);
@@ -112,7 +113,7 @@ public class S3Service {
                     .lines()
                     .collect(Collectors.joining("\n"));
 
-            PokemonDTO lastPostedPokemon = objectMapper.readValue(jsonContent, PokemonDTO.class);
+            PokemonDTO lastPostedPokemon = this.objectMapper.readValue(jsonContent, PokemonDTO.class);
             return Optional.of(lastPostedPokemon);
         } catch (NoSuchKeyException e) {
             LOGGER.warn("[{}] No previous published Pokemon found in S3", requestId);
@@ -125,10 +126,10 @@ public class S3Service {
     }
 
     public void saveLastPublishedPokemonJSON(String requestId, PokemonDTO pokemonDTO) {
-        LOGGER.info("[{}] Saving last published Pokemon JSON to S3. Pokedex: #{}", requestId, pokemonDTO.pokedexNumber());
+        LOGGER.info("[{}] Saving last published Pokemon JSON to S3. Pokedex: #{}", requestId, pokemonDTO.number());
 
         try {
-            String jsonContent = objectMapper.writeValueAsString(pokemonDTO);
+            String jsonContent = this.objectMapper.writeValueAsString(pokemonDTO);
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(BUCKET)
                     .key(LAST_POKEMON_JSON_KEY)

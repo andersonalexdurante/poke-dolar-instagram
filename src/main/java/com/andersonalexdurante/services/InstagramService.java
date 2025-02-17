@@ -29,9 +29,9 @@ public class InstagramService {
     private static final Logger LOGGER = LoggerFactory.getLogger(InstagramService.class);
     private static final String INSTAGRAM_ACCESS_TOKEN_PARAMETER = "instagram_access_token";
     private final ObjectMapper objectMapper = new ObjectMapper();
-    @ConfigProperty(name = "instagram.create.media.container.url")
+    @ConfigProperty(name = "INSTAGRAM_CREATE_MEDIA_CONTAINER_URL")
     String createMediaContainerUrl;
-    @ConfigProperty(name = "instagram.publish.media.container.url")
+    @ConfigProperty(name = "INSTAGRAM_PUBLISH_MEDIA_CONTAINER_URL")
     String publishMediaContainerUrl;
 
     @Inject
@@ -39,12 +39,12 @@ public class InstagramService {
 
 
     public void postPokemonImage(String requestId, int pokedexNumber,
-                                 PokemonDTO pokemonDTO, URL pokemonImageUrl) {
+                                 PokemonDTO pokemonDTO, URL pokemonImageUrl, String postCaption) {
         LOGGER.info("[{}] Starting Instagram post... Pokemon: #{}", requestId, pokedexNumber);
         try {
             String accessToken = this.getAccessToken(requestId);
             String idMediaContainer = this.createMediaContainer(requestId, pokemonImageUrl,
-                    pokedexNumber, pokemonDTO, accessToken);
+                    postCaption, pokedexNumber, accessToken);
             String idPublishedContainer = this.publishMediaContainer(requestId, idMediaContainer, accessToken);
             LOGGER.info("[{}] Pokemon image posted successfully! ID: {}", requestId, idPublishedContainer);
         } catch (Exception e) {
@@ -70,12 +70,11 @@ public class InstagramService {
 
     }
 
-    private String createMediaContainer(String requestId, URL pokemonImageUrl,
-                                        int pokedexNumber, PokemonDTO pokemonDTO, String accessToken) {
+    private String createMediaContainer(String requestId, URL pokemonImageUrl, String postCaption,
+                                        int pokedexNumber, String accessToken) {
         try {
-            String caption = "#" + pokedexNumber + " - " + pokemonDTO.pokemonName();
             CreateMediaContainerDTO createMediaContainerDTO =
-                    new CreateMediaContainerDTO(pokemonImageUrl.toString(), caption);
+                    new CreateMediaContainerDTO(pokemonImageUrl.toString(), postCaption);
 
             LOGGER.info("[{}] Creating Media Container for Pokemon #{}...", requestId, pokedexNumber);
 
