@@ -27,10 +27,11 @@ public class ImageEditingService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public InputStream editPokemonImage(String requestId, double dollarExchangeRate, PokemonDTO newPokemon,
-                                        PokemonDTO oldPokemon, InputStream pokemonImageStream) {
-        LOGGER.info("[{}] Starting image generation for Pokémon #{} - {}",
-                requestId, newPokemon.pokedexNumber(), newPokemon.pokemonName());
+    public InputStream editPokemonImage(String requestId, String dollarExchangeRate,
+                                        Boolean dollarup, PokemonDTO newPokemon, PokemonDTO oldPokemon,
+                                        InputStream pokemonImageStream) {
+        LOGGER.info("[{}] Starting image generation for Pokemon #{} - {}",
+                requestId, newPokemon.number(), newPokemon.name());
 
         try (LambdaClient lambdaClient = LambdaClient.builder()
                 .region(Region.US_EAST_2)
@@ -46,9 +47,10 @@ public class ImageEditingService {
             Map<String, Object> payloadMap = new HashMap<>();
             payloadMap.put("image", base64Image);
             payloadMap.put("dollar_rate", dollarExchangeRate);
-            payloadMap.put("pokedex_number", newPokemon.pokedexNumber());
-            payloadMap.put("pokemon_name", newPokemon.pokemonName());
-            payloadMap.put("old_pokedex_number", Objects.isNull(oldPokemon) ? null : oldPokemon.pokedexNumber());
+            payloadMap.put("dollar_up", dollarup);
+            payloadMap.put("pokedex_number", newPokemon.number());
+            payloadMap.put("pokemon_name", newPokemon.name());
+            payloadMap.put("old_pokedex_number", Objects.isNull(oldPokemon) ? null : oldPokemon.number());
 
             String jsonPayload = objectMapper.writeValueAsString(payloadMap);
             LOGGER.debug("[{}] JSON payload created: {}", requestId, jsonPayload.length());
@@ -91,7 +93,7 @@ public class ImageEditingService {
                 bodyNode = objectMapper.readTree(bodyNode.asText());
             }
 
-            String base64Image = bodyNode.path("image").asText(null); // Return null if not found
+            String base64Image = bodyNode.path("image").asText(null);
 
             if (base64Image == null || base64Image.isEmpty()) {
                 LOGGER.error("Failed to extract 'image' from body: {}", bodyNode);

@@ -19,10 +19,10 @@ public class DollarService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DollarService.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @ConfigProperty(name = "awesomeapi.dollar.url")
+    @ConfigProperty(name = "AWESOMEAPI_DOLLAR_URL")
     String dollarApiUrl;
 
-    public Double getDollarExchangeRate(String requestId) {
+    public String getDollarExchangeRate(String requestId) {
         LOGGER.info("[{}] [START] Fetching the dollar exchange rate", requestId);
 
         try {
@@ -37,12 +37,13 @@ public class DollarService {
 
             if (response.statusCode() == 200) {
                 JsonNode rootNode = this.objectMapper.readTree(response.body());
-                double exchangeRate = rootNode.path("USD").path("bid").asDouble();
+                String exchangeRate = rootNode.path("USD").path("bid").asText();
+                String formattedBid = exchangeRate.substring(0, 4).replace('.', ',');
 
                 LOGGER.info("[{}] [SUCCESS] Dollar exchange rate fetched: BRL ${}",
-                        requestId, exchangeRate);
+                        requestId, formattedBid);
 
-                return exchangeRate;
+                return formattedBid;
             }
 
             LOGGER.warn("[{}] [WARN] Failed to fetch dollar exchange rate. HTTP status: {}. URL: {}",
