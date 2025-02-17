@@ -1,26 +1,26 @@
 # Poke-Dolar-Instagram 👾💰
 
-O **Poke-Dolar-Instagram** é um projeto desenvolvido para estudos pessoais, explorando tecnologias modernas para automatizar a coleta da cotação do dólar e associá-la a um Pokémon correspondente, publicando o resultado diariamente no Instagram. 📈📸
+O **Poke-Dolar-Instagram** é um projeto desenvolvido para estudos pessoais, explorando tecnologias modernas para automatizar a coleta da cotação do dólar e associá-la a um Pokémon correspondente, publicando o resultado diariamente no Instagram. 📈📸 Siga a página e acompanhe a variação do dólar de uma maneira diferente: [@pokedolar.diario](https://www.instagram.com/p/DGEuXZNs-oR/ )
 
-📝 Este projeto foi inspirado no PokeDolar Bot para Twitter/X: https://github.com/PokeDolar/pokedolar_bot
+📝 _A ideia do projeto foi inspirada no PokeDolar Bot para [Twitter/X](https://github.com/PokeDolar/pokedolar_bot)_
 
 ## 🛠️ Tecnologias Utilizadas
 
 ### ⚙️ Backend
-- 🔥 **Quarkus** com **Java 23** e **GraalVM**, permitindo execução nativa e otimizada para cloud
+- 🔥 **Quarkus** com **Java 23** e **GraalVM**, explorando a capacidade de gerar **binários nativos** para reduzir consumo de recursos na AWS Lambda
 - ☁️ **AWS Lambda**, utilizando:
-    - 🏗️ Execução de uma imagem nativa gerada com GraalVM
+    - 🏗️ Execução de uma **imagem nativa** gerada com GraalVM, garantindo inicialização ultrarrápida e menor consumo de memória
     - 🐍 Um script em **Python** para geração dinâmica de imagens
     - 🔄 Um mecanismo de **refresh de token** para a API do Instagram
 - 🐳 **Docker**, utilizado para empacotamento e execução de aplicações nativas
 
 ### ☁️ Infraestrutura e Cloud
-- 📦 **AWS S3** para armazenamento de imagens geradas
+- 📦 **AWS S3** para armazenamento de imagens dos pokémon
 - 📡 **AWS SNS e SSM** para gerenciamento de eventos e segurança
 - ⏰ **AWS EventBridge** para agendamento de execuções automatizadas
 
 ### 🔗 Integrações e APIs
-- 🎭 **PokeAPI**, utilizada para obter dados sobre os Pokémon
+- 👾 **PokeAPI**, utilizada para obter dados sobre os Pokémon
 - 📲 **GraphAPI do Instagram**, utilizada para publicar as imagens de forma automatizada
 
 ## 🚀 Implantação e Funcionamento
