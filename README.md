@@ -1,6 +1,6 @@
 # Poke-Dolar-Instagram 👾💰
 
-O **Poke-Dolar-Instagram** automatiza a coleta da cotação do dólar e associa ao Pokémon correspondente na Pokedex, publicando o resultado diariamente no Instagram. 📈📸 Siga a página e acompanhe a variação do dólar de uma maneira diferente: [@pokedolar.diario](https://www.instagram.com/p/DGEuXZNs-oR/ )
+O **Poke-Dolar-Instagram** automatiza a coleta da cotação do dólar e associa ao Pokémon correspondente na Pokedex, publicando o resultado diariamente no Instagram. 📈📸 Siga a página e acompanhe a variação do dólar de uma maneira diferente: [@pokedolar.diario](https://www.instagram.com/pokedolar.diario/)
 
 📝 _A ideia do projeto foi inspirada no PokeDolar Bot para [Twitter/X](https://github.com/PokeDolar/pokedolar_bot)_
 
