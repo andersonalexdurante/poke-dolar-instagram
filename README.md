@@ -35,14 +35,4 @@ O projeto é totalmente hospedado na AWS, onde os serviços são orquestrados pa
 5. 📂 A imagem gerada é armazenada no **S3** e publicada automaticamente via **GraphAPI do Instagram**.
 6. 🔄 O sistema mantém um mecanismo de **refresh de token**, garantindo a continuidade da autenticação na API do Instagram.
 
-## 🤝 Contribuição
-
-Esse projeto foi feito para aprendizado, mas se quiser contribuir, fique à vontade para abrir issues ou pull requests. 🚀
-
-## 📜 Licença
-
-Este projeto está sob a licença MIT. Consulte o arquivo `LICENSE` para mais informações.
-
----
-
 **👨‍💻 Autor:** Anderson Alex Durante (https://www.linkedin.com/in/andersonalexdurante/)
