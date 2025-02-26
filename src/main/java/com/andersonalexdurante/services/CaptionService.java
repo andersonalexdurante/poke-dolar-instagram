@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
 
+import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
@@ -28,7 +29,7 @@ public class CaptionService {
     }
 
     public String generateCaption(String requestId, PokemonDTO pokemonData, Boolean dollarup,
-                                  String dollarExchangeRate) {
+                                  String dollarExchangeRate, List<String> last4Posts) {
 
         String dollarVariation = null;
 
@@ -37,10 +38,12 @@ public class CaptionService {
 
         try {
             String pokemonJsonPayload = this.objectMapper.writeValueAsString(pokemonData);
+            String captionsHistoryPayload = this.objectMapper.writeValueAsString(last4Posts);
             Map<String, PromptVariableValues> variables = Map.of(
                     "dollar_variation", PromptVariableValues.builder().text(dollarVariation).build(),
                     "dollar_price", PromptVariableValues.builder().text(dollarExchangeRate).build(),
-                    "pokemon_data", PromptVariableValues.builder().text(pokemonJsonPayload).build()
+                    "pokemon_data", PromptVariableValues.builder().text(pokemonJsonPayload).build(),
+                    "captions_history", PromptVariableValues.builder().text(captionsHistoryPayload).build()
                     );
 
             ConverseRequest request = ConverseRequest.builder()

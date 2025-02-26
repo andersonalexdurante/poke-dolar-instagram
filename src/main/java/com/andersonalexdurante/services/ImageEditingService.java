@@ -17,7 +17,6 @@ import java.io.*;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 @ApplicationScoped
 public class ImageEditingService {
@@ -27,9 +26,8 @@ public class ImageEditingService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public InputStream editPokemonImage(String requestId, String dollarExchangeRate,
-                                        Boolean dollarup, PokemonDTO newPokemon, PokemonDTO oldPokemon,
-                                        InputStream pokemonImageStream) {
+    public InputStream editPokemonImage(String requestId, String dollarExchangeRate, Boolean dollarup,
+                                        PokemonDTO newPokemon, InputStream pokemonImageStream) {
         LOGGER.info("[{}] Starting image generation for Pokemon #{} - {}",
                 requestId, newPokemon.number(), newPokemon.name());
 
@@ -50,7 +48,6 @@ public class ImageEditingService {
             payloadMap.put("dollar_up", dollarup);
             payloadMap.put("pokedex_number", newPokemon.number());
             payloadMap.put("pokemon_name", newPokemon.name());
-            payloadMap.put("old_pokedex_number", Objects.isNull(oldPokemon) ? null : oldPokemon.number());
 
             String jsonPayload = objectMapper.writeValueAsString(payloadMap);
             LOGGER.debug("[{}] JSON payload created: {}", requestId, jsonPayload.length());

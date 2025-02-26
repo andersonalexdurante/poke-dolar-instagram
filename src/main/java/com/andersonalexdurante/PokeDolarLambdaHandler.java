@@ -10,8 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.URL;
-import java.util.Objects;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +25,8 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
     DollarService dollarService;
     @Inject
     PokemonService pokemonService;
+    @Inject
+    DynamoDBService dynamoDBService;
     @Inject
     S3Service s3Service;
     @Inject
@@ -43,10 +46,11 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
         try {
             String dollarExchangeRate = this.dollarService.getDollarExchangeRate(requestId);
             int pokedexNumber = this.getPokedexNumber(dollarExchangeRate);
-            Optional<PokemonDTO> lastPublishedPokemonOpt = this.s3Service.getLastPublishedPokemon(requestId);
+            Optional<String> lastDollarRate = this.dynamoDBService.getLastDollarRate(requestId);
 
-            if (this.isPokemonAlreadyPublished(lastPublishedPokemonOpt, pokedexNumber)) {
-                LOGGER.info("[{}] The Pokemon #{} has already been published. Skipping", requestId, pokedexNumber);
+            if (!this.dollarRateChanged(lastDollarRate, dollarExchangeRate)) {
+                LOGGER.info("[{}] Dollar rate {} dont changed! The Pokemon #{} has already been published. Skipping",
+                        requestId, dollarExchangeRate, pokedexNumber);
                 return null;
             }
 
@@ -54,18 +58,21 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             PokemonDTO pokemonData = this.pokemonService.getPokemonData(requestId, pokedexNumber);
 
             LOGGER.info("[{}] Analyzing whether the price of the dollar rose or fell", requestId);
-            Boolean dollarUp = dollarUp(requestId, lastPublishedPokemonOpt.orElse(null), pokedexNumber);
+            Boolean dollarUp = dollarUp(requestId, lastDollarRate.orElse(null), dollarExchangeRate);
+
+            LOGGER.info("[{}] Getting Last Posts for caption prompt context", requestId);
+            List<String> last4Captions = this.dynamoDBService.getLast4Captions(requestId);
 
             LOGGER.info("[{}] Generating post caption with AWS Bedrock", requestId);
             String postCaption = this.captionService.generateCaption(requestId, pokemonData, dollarUp,
-            dollarExchangeRate);
+            dollarExchangeRate, last4Captions);
 
             LOGGER.info("[{}] Getting Pokemon image from S3. Pokedex: #{}", requestId, pokedexNumber);
-            InputStream pokemonImageStream = this.s3Service.getPokemonImage(requestId, pokedexNumber);
+            InputStream pokemonImageStream = this.s3Service.getPokemonImage(requestId, pokemonData.name());
 
             LOGGER.info("[{}] Editing Pokemon image with exchange rate ${}", requestId, dollarExchangeRate);
             InputStream editedPokemonImage = this.imageEditingService.editPokemonImage(requestId, dollarExchangeRate,
-                    dollarUp, pokemonData, lastPublishedPokemonOpt.orElse(null), pokemonImageStream);
+                    dollarUp, pokemonData, pokemonImageStream);
 
             LOGGER.info("[{}] Saving edited image to S3", requestId);
             URL imageUrlToPublish = this.s3Service.savePokemonImage(requestId, editedPokemonImage);
@@ -74,8 +81,8 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             this.instagramService.postPokemonImage(requestId, pokedexNumber, pokemonData, imageUrlToPublish,
                     postCaption);
 
-            LOGGER.info("[{}] Saving last published Pokemon info", requestId);
-            this.s3Service.saveLastPublishedPokemonJSON(requestId, pokemonData);
+            LOGGER.info("[{}] Saving new post info in DynamoDB", requestId);
+            this.dynamoDBService.savePost(requestId, pokemonData.name(), dollarExchangeRate, postCaption);
         } catch (Exception e) {
             LOGGER.error("[{}] [ERROR] An unexpected error occurred. - {}", requestId, e.getMessage(), e);
         } finally {
@@ -86,34 +93,36 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
         return null;
     }
 
-    private static Boolean dollarUp(String requestId, PokemonDTO lastPokemonData, int pokedexNumber) {
-        if (Objects.isNull(lastPokemonData)) {
-            LOGGER.info("[{}] No previous data to say whether the dollar rose or fell", requestId);
-            return null;
-        } else if(pokedexNumber > lastPokemonData.number()) {
-            LOGGER.info("[{}] BRL to USD rose: {} - {}", requestId, lastPokemonData.number(), pokedexNumber);
-            return Boolean.TRUE;
-        }
-        LOGGER.info("[{}] BRL to USD fell: {} - {}", requestId, lastPokemonData.number(), pokedexNumber);
-        return Boolean.FALSE;
-    }
-
     private int getPokedexNumber(String dollarExchangeRate) {
         int pokedexNumber = Integer.parseInt(dollarExchangeRate.replace(",", ""));
         LOGGER.debug("Calculated Pokedex number: #{}. Dollar Rate: ${}", pokedexNumber, dollarExchangeRate);
         return pokedexNumber;
     }
 
-    private boolean isPokemonAlreadyPublished(Optional<PokemonDTO> lastPublishedPokemonOpt, int pokedexNumber) {
-        boolean isPublished = lastPublishedPokemonOpt.isPresent() &&
-                isLastPokemonPublished(lastPublishedPokemonOpt.get().number(), pokedexNumber);
-        LOGGER.debug("Checking if Pokedex #{} is already published: {}.", pokedexNumber, isPublished);
-        return isPublished;
+    private boolean dollarRateChanged(Optional<String> lastDollarRate, String dollarExchangeRate) {
+        boolean dollarRateChanged = lastDollarRate.isEmpty() ||
+                lastDollarRate.map(s -> !s.equals(dollarExchangeRate)).orElse(true);
+        LOGGER.debug("Checking if Dollar Rate changed: {}", dollarRateChanged);
+        return dollarRateChanged;
     }
 
-    private boolean isLastPokemonPublished(int lastPokedexNumber, int pokedexNumber) {
-        boolean isSame = lastPokedexNumber == pokedexNumber;
-        LOGGER.debug("Comparing last published Pokemon #{} with current #{}: {}", lastPokedexNumber, pokedexNumber, isSame);
-        return isSame;
+
+    private static Boolean dollarUp(String requestId, String lastDollarRate, String dollarExchangeRate) {
+        if (lastDollarRate == null) {
+            LOGGER.info("[{}] No previous data to determine whether the dollar rose or fell", requestId);
+            return null;
+        }
+
+        BigDecimal lastRate = new BigDecimal(lastDollarRate.replace(",", "."));
+        BigDecimal newRate = new BigDecimal(dollarExchangeRate.replace(",", "."));
+
+        if (newRate.compareTo(lastRate) > 0) {
+            LOGGER.info("[{}] BRL to USD rose: {} → {}", requestId, lastRate, newRate);
+            return Boolean.TRUE;
+        }
+
+        LOGGER.info("[{}] BRL to USD fell: {} → {}", requestId, lastRate, newRate);
+        return Boolean.FALSE;
     }
+
 }
