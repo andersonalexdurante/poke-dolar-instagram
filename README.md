@@ -22,6 +22,7 @@ O **Poke-Dolar-Instagram** automatiza a coleta da cotação do dólar e associa 
 - 🗄️ **AWS DynamoDB** para armazenamento dos posts publicados, permitindo que a IA tenha contexto sobre publicações anteriores
 
 ### 🔗 Integrações e APIs
+- 💵 **AwesomeAPI** utilizada para obter a cotação do dólar
 - 👾 **PokeAPI**, utilizada para obter dados sobre os Pokémon
 - 📲 **GraphAPI do Instagram**, utilizada para publicar as imagens de forma automatizada
 
