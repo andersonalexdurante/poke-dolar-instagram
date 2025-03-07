@@ -44,7 +44,7 @@ public class DynamoDBService {
         }
     }
 
-    public List<String> getLast4Captions(String requestId) {
+    public List<Map<String, Object>> getLast4Captions(String requestId) {
         LOGGER.info("[{}] Fetching last 4 posts for caption prompt context", requestId);
 
         QueryRequest queryRequest = QueryRequest.builder()
@@ -59,14 +59,27 @@ public class DynamoDBService {
         try {
             QueryResponse response = this.dynamoDbClient.query(queryRequest);
             LOGGER.info("[{}] Fetched {} posts successfully.", requestId, response.count());
-            return response.items().stream()
-                    .map(item -> item.get("caption").s())
+
+            List<Map<String, Object>> captions = response.items().stream()
+                    .map(item -> {
+                        Map<String, Object> captionMap = new HashMap<>();
+                        String caption = item.get("caption").s();
+                        captionMap.put("caption", caption);
+                        return captionMap;
+                    })
                     .collect(Collectors.toList());
+
+            if (!captions.isEmpty()) {
+                captions.getFirst().put("lastCaption", true);
+            }
+
+            return captions;
         } catch (Exception e) {
             LOGGER.error("[{}] Error fetching posts: {}", requestId, e.getMessage(), e);
             return Collections.emptyList();
         }
     }
+
 
     public Optional<String> getLastDollarRate(String requestId) {
         LOGGER.info("[{}] Fetching last dollar rate.", requestId);

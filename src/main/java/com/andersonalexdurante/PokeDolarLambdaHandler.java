@@ -3,9 +3,11 @@ package com.andersonalexdurante;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.andersonalexdurante.dto.PokemonDTO;
+import com.andersonalexdurante.interfaces.IDollarService;
 import com.andersonalexdurante.services.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -13,6 +15,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,7 +25,8 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
     private static final Logger LOGGER = LoggerFactory.getLogger(PokeDolarLambdaHandler.class);
 
     @Inject
-    DollarService dollarService;
+    @Named("dollarService")
+    IDollarService dollarService;
     @Inject
     PokemonService pokemonService;
     @Inject
@@ -61,7 +65,7 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             Boolean dollarUp = dollarUp(requestId, lastDollarRate.orElse(null), dollarExchangeRate);
 
             LOGGER.info("[{}] Getting Last Posts for caption prompt context", requestId);
-            List<String> last4Captions = this.dynamoDBService.getLast4Captions(requestId);
+            List<Map<String, Object>> last4Captions = this.dynamoDBService.getLast4Captions(requestId);
 
             LOGGER.info("[{}] Generating post caption with AWS Bedrock", requestId);
             String postCaption = this.captionService.generateCaption(requestId, pokemonData, dollarUp,
@@ -78,7 +82,7 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             URL imageUrlToPublish = this.s3Service.savePokemonImage(requestId, editedPokemonImage);
 
             LOGGER.info("[{}] Posting image to Instagram. Pokedex: #{}", requestId, pokedexNumber);
-            this.instagramService.postPokemonImage(requestId, pokedexNumber, pokemonData, imageUrlToPublish,
+            this.instagramService.postPokemonImage(requestId, pokedexNumber, imageUrlToPublish,
                     postCaption);
 
             LOGGER.info("[{}] Saving new post info in DynamoDB", requestId);

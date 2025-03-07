@@ -1,7 +1,6 @@
 package com.andersonalexdurante.services;
 
 import com.andersonalexdurante.dto.CreateMediaContainerDTO;
-import com.andersonalexdurante.dto.PokemonDTO;
 import com.andersonalexdurante.dto.PublishMediaContainerDTO;
 import com.andersonalexdurante.exceptions.InstagramApiException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,10 +11,6 @@ import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.services.ssm.SsmClient;
-import software.amazon.awssdk.services.ssm.model.GetParameterRequest;
-import software.amazon.awssdk.services.ssm.model.GetParameterResponse;
-import software.amazon.awssdk.services.ssm.model.SsmException;
 
 import java.net.URI;
 import java.net.URL;
@@ -35,14 +30,13 @@ public class InstagramService {
     String publishMediaContainerUrl;
 
     @Inject
-    SsmClient ssmClient;
+    SsmService ssmService;
 
-
-    public void postPokemonImage(String requestId, int pokedexNumber,
-                                 PokemonDTO pokemonDTO, URL pokemonImageUrl, String postCaption) {
+    public void postPokemonImage(String requestId, int pokedexNumber, URL pokemonImageUrl, String postCaption) {
         LOGGER.info("[{}] Starting Instagram post... Pokemon: #{}", requestId, pokedexNumber);
         try {
-            String accessToken = this.getAccessToken(requestId);
+            String accessToken =
+                    this.ssmService.getStringParameterWithDecryption(requestId, INSTAGRAM_ACCESS_TOKEN_PARAMETER);
             String idMediaContainer = this.createMediaContainer(requestId, pokemonImageUrl,
                     postCaption, pokedexNumber, accessToken);
             String idPublishedContainer = this.publishMediaContainer(requestId, idMediaContainer, accessToken);
@@ -50,24 +44,6 @@ public class InstagramService {
         } catch (Exception e) {
             LOGGER.error("[{}] Error while posting image to Instagram!", requestId, e);
         }
-    }
-
-    public String getAccessToken(String requestId) {
-        LOGGER.info("[{}] Getting Instagram Access Token", requestId);
-        try {
-            GetParameterRequest request = GetParameterRequest.builder()
-                    .name(INSTAGRAM_ACCESS_TOKEN_PARAMETER)
-                    .withDecryption(true)
-                    .build();
-
-            GetParameterResponse response = this.ssmClient.getParameter(request);
-            LOGGER.info("[{}] Instagram Access Token recovered!", requestId);
-            return response.parameter().value();
-        } catch (SsmException e) {
-            LOGGER.error("[{}] Error while getting access token from AWS Parameter Store!", requestId, e);
-            throw e;
-        }
-
     }
 
     private String createMediaContainer(String requestId, URL pokemonImageUrl, String postCaption,

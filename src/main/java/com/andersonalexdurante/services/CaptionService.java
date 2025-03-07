@@ -29,7 +29,7 @@ public class CaptionService {
     }
 
     public String generateCaption(String requestId, PokemonDTO pokemonData, Boolean dollarup,
-                                  String dollarExchangeRate, List<String> last4Posts) {
+                                  String dollarExchangeRate, List<Map<String, Object>> last4Posts) {
 
         String dollarVariation = null;
 
