@@ -52,11 +52,11 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             int pokedexNumber = this.getPokedexNumber(dollarExchangeRate);
             Optional<String> lastDollarRate = this.dynamoDBService.getLastDollarRate(requestId);
 
-            /*if (!this.dollarRateChanged(lastDollarRate, dollarExchangeRate)) {
+            if (!this.dollarRateChanged(lastDollarRate, dollarExchangeRate)) {
                 LOGGER.info("[{}] Dollar rate {} dont changed! The Pokemon #{} has already been published. Skipping",
                         requestId, dollarExchangeRate, pokedexNumber);
                 return null;
-            }*/
+            }
 
             LOGGER.info("[{}] Fetching Pokemon data for Pokedex #{}", requestId, pokedexNumber);
             PokemonDTO pokemonData = this.pokemonService.getPokemonData(requestId, pokedexNumber);
