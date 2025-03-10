@@ -39,28 +39,50 @@ public class PokemonService {
                             .GET()
                             .build(), HttpResponse.BodyHandlers.ofString());
 
-            int statusCode = response.statusCode();
-            if (statusCode == 200) {
+            if (response.statusCode() == 200) {
                 JsonNode rootNode = this.objectMapper.readTree(response.body());
-
                 String name = rootNode.get("species").get("name").asText().toUpperCase();
-                List<String> types = this.extractTypes(rootNode);
-                Map<String, String> abilities = this.extractAbilitiesWithDescriptions(rootNode);
+                List<String> types = extractTypes(rootNode);
+                Map<String, String> abilities = extractAbilitiesWithDescriptions(rootNode);
 
                 String speciesUrl = rootNode.get("species").get("url").asText();
-                String description = this.fetchPokemonDescription(speciesUrl);
+                JsonNode speciesData = fetchJsonFromUrl(speciesUrl);
+                String description = extractPokemonDescription(speciesData);
+                boolean isFinalEvolution = checkIfFinalEvolution(speciesData);
 
-                LOGGER.info("[{}] Successfully fetched Pokemon: {} (Pokedex Number: {})", requestId, name, pokedexNumber);
-                return new PokemonDTO(pokedexNumber, name, types, abilities, description);
+                LOGGER.info("[{}] Successfully fetched Pokemon: {} (Pokedex Number: {} | Final Evolution: {})",
+                        requestId, name, pokedexNumber, isFinalEvolution);
+
+                return new PokemonDTO(pokedexNumber, name, types, abilities, description, isFinalEvolution);
             } else {
-                LOGGER.error("[{}] Failed to fetch Pokemon. HTTP Status: {} | URL: {}", requestId, statusCode, pokemonUrl);
-                throw new PokemonException("Failed to fetch PokeAPI. HTTP status: " + statusCode);
+                throw new PokemonException("Failed to fetch PokeAPI. HTTP status: " + response.statusCode());
             }
         } catch (Exception ex) {
-            LOGGER.error("[{}] Exception occurred while fetching Pokemon (Pokedex Number: {}): {}", requestId,
-                    pokedexNumber, ex.getMessage(), ex);
             throw new PokemonException("Failed to fetch PokeAPI.", ex);
         }
+    }
+
+    private boolean checkIfFinalEvolution(JsonNode speciesData) {
+        try {
+            String evolutionChainUrl = speciesData.get("evolution_chain").get("url").asText();
+            JsonNode evolutionChain = fetchJsonFromUrl(evolutionChainUrl).get("chain");
+            return isLastEvolutionStage(evolutionChain, speciesData.get("name").asText());
+        } catch (Exception ex) {
+            LOGGER.error("Error fetching evolution chain: {}", ex.getMessage(), ex);
+            return false;
+        }
+    }
+
+    private boolean isLastEvolutionStage(JsonNode evolutionNode, String currentPokemonName) {
+        if (evolutionNode.get("species").get("name").asText().equals(currentPokemonName)) {
+            return evolutionNode.get("evolves_to").isEmpty();
+        }
+        for (JsonNode nextStage : evolutionNode.get("evolves_to")) {
+            if (isLastEvolutionStage(nextStage, currentPokemonName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<String> extractTypes(JsonNode rootNode) {
@@ -74,75 +96,43 @@ public class PokemonService {
         rootNode.get("abilities").forEach(abilityNode -> {
             String abilityName = abilityNode.get("ability").get("name").asText();
             String abilityUrl = abilityNode.get("ability").get("url").asText();
-            String abilityDescription = this.fetchAbilityDescription(abilityUrl);
+            String abilityDescription = fetchAbilityDescription(abilityUrl);
             abilities.put(abilityName, abilityDescription);
         });
         return abilities;
     }
 
     private String fetchAbilityDescription(String abilityUrl) {
-        try {
-            HttpResponse<String> response = HttpClient.newHttpClient()
-                    .send(HttpRequest.newBuilder()
-                            .uri(URI.create(abilityUrl))
-                            .GET()
-                            .build(), HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                JsonNode abilityNode = this.objectMapper.readTree(response.body());
-
-                for (JsonNode entry : abilityNode.get("flavor_text_entries")) {
-                    if (entry.get("language").get("name").asText().equals("en")) {
-                        return entry.get("flavor_text").asText()
-                                .replace("\n", " ")
-                                .replace("\f", " ");
-                    }
-                }
-            } else {
-                LOGGER.error("Failed to fetch ability description. HTTP Status: {}", response.statusCode());
+        JsonNode abilityNode = fetchJsonFromUrl(abilityUrl);
+        for (JsonNode entry : abilityNode.get("flavor_text_entries")) {
+            if (entry.get("language").get("name").asText().equals("en")) {
+                return entry.get("flavor_text").asText().replace("\n", " ").replace("\f", " ");
             }
-        } catch (Exception ex) {
-            LOGGER.error("Exception while fetching ability description: {}", ex.getMessage(), ex);
         }
         return "No description available.";
     }
 
-    private String fetchPokemonDescription(String speciesUrl) {
-        try {
-            HttpResponse<String> response = HttpClient.newHttpClient()
-                    .send(HttpRequest.newBuilder()
-                            .uri(URI.create(speciesUrl))
-                            .GET()
-                            .build(), HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                JsonNode speciesNode = objectMapper.readTree(response.body());
-
-                String longestDescription = "No description available.";
-                int maxLength = 0;
-
-                // Percorre todas as descrições em inglês e seleciona a mais longa
-                for (JsonNode entry : speciesNode.get("flavor_text_entries")) {
-                    if (entry.get("language").get("name").asText().equals("en")) {
-                        String description = entry.get("flavor_text").asText()
-                                .replace("\n", " ") // Remove quebras de linha
-                                .replace("\f", " "); // Remove caracteres especiais
-
-                        if (description.length() > maxLength) {
-                            maxLength = description.length();
-                            longestDescription = description;
-                        }
-                    }
-                }
-
-                return longestDescription;
-            } else {
-                LOGGER.error("Failed to fetch Pokemon species. HTTP Status: {}", response.statusCode());
+    private String extractPokemonDescription(JsonNode speciesData) {
+        for (JsonNode entry : speciesData.get("flavor_text_entries")) {
+            if (entry.get("language").get("name").asText().equals("en")) {
+                return entry.get("flavor_text").asText().replace("\n", " ").replace("\f", " ");
             }
-        } catch (Exception ex) {
-            LOGGER.error("Exception while fetching Pokemon species: {}", ex.getMessage(), ex);
         }
         return "No description available.";
     }
 
+    private JsonNode fetchJsonFromUrl(String url) {
+        try {
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                    .send(HttpRequest.newBuilder().uri(URI.create(url)).GET().build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                return objectMapper.readTree(response.body());
+            } else {
+                LOGGER.error("Failed to fetch JSON from URL: {} | HTTP Status: {}", url, response.statusCode());
+            }
+        } catch (Exception ex) {
+            LOGGER.error("Exception while fetching JSON from URL: {} | Error: {}", url, ex.getMessage(), ex);
+        }
+        return this.objectMapper.createObjectNode();
+    }
 }

@@ -4,11 +4,14 @@ import com.andersonalexdurante.dto.PokemonDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
@@ -16,18 +19,67 @@ import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import java.io.*;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
-public class ImageEditingService {
+public class ImageService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ImageEditingService.class);
-    private static final String IMAGE_GENERATOR_LAMBDA_NAME = "poke-dolar-image-generator";
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(ImageService.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    @ConfigProperty(name = "IMAGE_GENERATOR_LAMBDA")
+    String imageGeneratorLambda;
+    @ConfigProperty(name = "SPECIAL_IMAGE_INITIAL_PERCENTAGE_CHANCE")
+    String specialImageInitialPercentageChance;
+    @ConfigProperty(name = "SPECIAL_IMAGE_FINAL_EVOLUTION_PERCENTAGE_CHANCE")
+    String specialImageFinalEvolutionPercentageChance;
+    @ConfigProperty(name = "SPECIAL_IMAGE_DOLLAR_CENTS_VARIATION")
+    String specialImageDollarCentsVariation;
+    @ConfigProperty(name = "SPECIAL_IMAGE_DOLLAR_CENTS_VARIATION_PERCENTAGE_CHANGE")
+    String specialImageDollarCentsVariationPercentageChance;
+
+    @Inject
+    DynamoDBService dynamoDBService;
+
+    public boolean shouldGenerateSpecialImage(String requestId, String pokemonName, boolean isFinalEvolution,
+                                              List<Map<String, Object>> last4Posts, String dollarRate) {
+        double chance = Double.parseDouble(this.specialImageInitialPercentageChance);
+        LOGGER.debug("[{}] Initial chance set to: {}%", requestId, chance);
+
+        List<Map<String, AttributeValue>> recentSpecialImagePosts = this.dynamoDBService.getRecentSpecialImagePosts(pokemonName);
+        if (!recentSpecialImagePosts.isEmpty()) {
+            LOGGER.info("[{}] Recent special image found for {}. Gradient Background will be generated.", requestId,
+                    pokemonName);
+            return false;
+        }
+
+        if (isFinalEvolution) {
+            chance += Double.parseDouble(this.specialImageFinalEvolutionPercentageChance);
+            LOGGER.info("[{}] Pokemon is final evolution. Chance increased to: {}%", requestId, chance);
+        }
+
+        double oldDollarRate = Double.parseDouble(last4Posts.getLast().get("dollar_rate").toString().replace(",", "."));
+        double newDollarRate = Double.parseDouble(dollarRate.replace(",", "."));
+        double variation = Math.abs(newDollarRate - oldDollarRate);
+
+        LOGGER.debug("[{}] Dollar rate variation: {} (Old: {} -> New: {})", requestId, variation, oldDollarRate, newDollarRate);
+
+        if (variation >= Double.parseDouble(this.specialImageDollarCentsVariation)) {
+            chance += Double.parseDouble(this.specialImageDollarCentsVariationPercentageChance);
+            LOGGER.info("[{}] Significant dollar variation detected. Chance increased to: {}%", requestId, chance);
+        }
+
+        boolean shouldGenerate = Math.random() * 100 < chance;
+        LOGGER.info("[{}] Special image generation decision for {}: {} (Final chance: {}%)",
+                requestId, pokemonName, shouldGenerate, chance);
+
+        return shouldGenerate;
+    }
+
 
     public InputStream editPokemonImage(String requestId, String dollarExchangeRate, Boolean dollarup,
-                                        PokemonDTO newPokemon, InputStream pokemonImageStream) {
+                                        PokemonDTO newPokemon, InputStream pokemonImageStream, boolean specialImage,
+                                        String backgroundImageDescription) {
         LOGGER.info("[{}] Starting image generation for Pokemon #{} - {}",
                 requestId, newPokemon.number(), newPokemon.name());
 
@@ -36,26 +88,25 @@ public class ImageEditingService {
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build()) {
 
-            // Convert image to Base64
             byte[] imageBytes = pokemonImageStream.readAllBytes();
             String base64Image = Base64.getEncoder().encodeToString(imageBytes);
             LOGGER.debug("[{}] Image converted to Base64 ({} bytes)", requestId, imageBytes.length);
 
-            // Create JSON payload
             Map<String, Object> payloadMap = new HashMap<>();
             payloadMap.put("image", base64Image);
             payloadMap.put("dollar_rate", dollarExchangeRate);
             payloadMap.put("dollar_up", dollarup);
             payloadMap.put("pokedex_number", newPokemon.number());
             payloadMap.put("pokemon_name", newPokemon.name());
+            payloadMap.put("special_image", specialImage);
+            payloadMap.put("background_description", backgroundImageDescription);
 
-            String jsonPayload = objectMapper.writeValueAsString(payloadMap);
+            String jsonPayload = this.objectMapper.writeValueAsString(payloadMap);
             LOGGER.debug("[{}] JSON payload created: {}", requestId, jsonPayload.length());
 
-            // Invoke Lambda function
-            LOGGER.info("[{}] Invoking Lambda function: {}", requestId, IMAGE_GENERATOR_LAMBDA_NAME);
+            LOGGER.info("[{}] Invoking Lambda function: {}", requestId, this.imageGeneratorLambda);
             InvokeRequest request = InvokeRequest.builder()
-                    .functionName(IMAGE_GENERATOR_LAMBDA_NAME)
+                    .functionName(this.imageGeneratorLambda)
                     .payload(SdkBytes.fromUtf8String(jsonPayload))
                     .build();
 
@@ -63,14 +114,12 @@ public class ImageEditingService {
             String responseJson = response.payload().asUtf8String();
             LOGGER.debug("[{}] Lambda response received: {}", requestId, responseJson.length());
 
-            // Extract Base64 image from JSON response
             String base64OutputImage = extractBase64Image(responseJson);
             if (base64OutputImage == null) {
                 LOGGER.error("[{}] Invalid Lambda response: {}", requestId, responseJson.length());
                 throw new IOException("Invalid Lambda response");
             }
 
-            // Decode Base64 response into InputStream
             byte[] outputBytes = Base64.getDecoder().decode(base64OutputImage);
             LOGGER.info("[{}] Image successfully generated by Lambda", requestId);
 

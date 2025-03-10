@@ -5,12 +5,10 @@ import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
-import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.*;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,13 +21,14 @@ public class DynamoDBService {
     @Inject
     DynamoDbClient dynamoDbClient;
 
-    public void savePost(String requestId, String pokemon, String dollarValue, String caption) {
+    public void savePost(String requestId, String pokemon, String dollarValue, String caption, boolean specialImage) {
         Map<String, AttributeValue> item = new HashMap<>();
         item.put("context_id", AttributeValue.builder().s("posts").build());
         item.put("timestamp", AttributeValue.builder().s(Instant.now().toString()).build());
         item.put("pokemon", AttributeValue.builder().s(pokemon).build());
         item.put("dollar_rate", AttributeValue.builder().s(String.valueOf(dollarValue)).build());
         item.put("caption", AttributeValue.builder().s(caption).build());
+        item.put("special_image", AttributeValue.builder().s(String.valueOf(specialImage)).build());
 
         PutItemRequest request = PutItemRequest.builder()
                 .tableName(POKE_DOLAR_POSTS_TABLE)
@@ -44,14 +43,43 @@ public class DynamoDBService {
         }
     }
 
-    public List<Map<String, Object>> getLast4Captions(String requestId) {
-        LOGGER.info("[{}] Fetching last 4 posts for caption prompt context", requestId);
+    public List<Map<String, AttributeValue>> getRecentSpecialImagePosts(String pokemon) {
+        Instant thirtyDaysAgo = Instant.now().minus(30, ChronoUnit.DAYS);
 
+        QueryRequest queryRequest = QueryRequest.builder()
+                .tableName(POKE_DOLAR_POSTS_TABLE)
+                .keyConditionExpression("context_id = :context AND #timestamp >= :date")
+                .filterExpression("pokemon = :pokemon AND special_image = :special")
+                .expressionAttributeNames(Map.of(
+                        "#timestamp", "timestamp" // Mapeando o "timestamp" para "#timestamp"
+                ))
+                .expressionAttributeValues(Map.of(
+                        ":context", AttributeValue.builder().s("posts").build(),
+                        ":pokemon", AttributeValue.builder().s(pokemon).build(),
+                        ":date", AttributeValue.builder().s(thirtyDaysAgo.toString()).build(),
+                        ":special", AttributeValue.builder().s("true").build()
+                ))
+                .build();
+
+        List<Map<String, AttributeValue>> results = new ArrayList<>();
+
+        try {
+            QueryResponse response = this.dynamoDbClient.query(queryRequest);
+            results = response.items();
+            LOGGER.info("Found {} posts with special image for Pokemon {} in the last 30 days.", results.size(),
+                    pokemon);
+        } catch (Exception e) {
+            LOGGER.error("Error querying DynamoDB for Pokemon {}: {}", pokemon, e.getMessage(), e);
+        }
+
+        return results;
+    }
+
+    public List<Map<String, Object>> getLast4Posts(String requestId) {
         QueryRequest queryRequest = QueryRequest.builder()
                 .tableName(POKE_DOLAR_POSTS_TABLE)
                 .keyConditionExpression("context_id = :context")
                 .expressionAttributeValues(Map.of(":context", AttributeValue.builder().s("posts").build()))
-                .projectionExpression("caption")
                 .limit(4)
                 .scanIndexForward(false)
                 .build();
@@ -60,26 +88,24 @@ public class DynamoDBService {
             QueryResponse response = this.dynamoDbClient.query(queryRequest);
             LOGGER.info("[{}] Fetched {} posts successfully.", requestId, response.count());
 
-            List<Map<String, Object>> captions = response.items().stream()
+            List<Map<String, Object>> posts = response.items().stream()
                     .map(item -> {
-                        Map<String, Object> captionMap = new HashMap<>();
-                        String caption = item.get("caption").s();
-                        captionMap.put("caption", caption);
-                        return captionMap;
+                        Map<String, Object> postMap = new HashMap<>();
+                        item.forEach((key, value) -> postMap.put(key, value.s()));
+                        return postMap;
                     })
                     .collect(Collectors.toList());
 
-            if (!captions.isEmpty()) {
-                captions.getFirst().put("lastCaption", true);
+            if (!posts.isEmpty()) {
+                posts.getFirst().put("lastPost", true);
             }
 
-            return captions;
+            return posts;
         } catch (Exception e) {
             LOGGER.error("[{}] Error fetching posts: {}", requestId, e.getMessage(), e);
             return Collections.emptyList();
         }
     }
-
 
     public Optional<String> getLastDollarRate(String requestId) {
         LOGGER.info("[{}] Fetching last dollar rate.", requestId);

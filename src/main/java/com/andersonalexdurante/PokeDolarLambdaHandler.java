@@ -34,9 +34,9 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
     @Inject
     S3Service s3Service;
     @Inject
-    ImageEditingService imageEditingService;
+    ImageService imageService;
     @Inject
-    CaptionService captionService;
+    BedrockService bedrockService;
     @Inject
     InstagramService instagramService;
 
@@ -52,41 +52,55 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             int pokedexNumber = this.getPokedexNumber(dollarExchangeRate);
             Optional<String> lastDollarRate = this.dynamoDBService.getLastDollarRate(requestId);
 
-            if (!this.dollarRateChanged(lastDollarRate, dollarExchangeRate)) {
+            /*if (!this.dollarRateChanged(lastDollarRate, dollarExchangeRate)) {
                 LOGGER.info("[{}] Dollar rate {} dont changed! The Pokemon #{} has already been published. Skipping",
                         requestId, dollarExchangeRate, pokedexNumber);
                 return null;
-            }
+            }*/
 
             LOGGER.info("[{}] Fetching Pokemon data for Pokedex #{}", requestId, pokedexNumber);
             PokemonDTO pokemonData = this.pokemonService.getPokemonData(requestId, pokedexNumber);
 
-            LOGGER.info("[{}] Analyzing whether the price of the dollar rose or fell", requestId);
-            Boolean dollarUp = dollarUp(requestId, lastDollarRate.orElse(null), dollarExchangeRate);
-
-            LOGGER.info("[{}] Getting Last Posts for caption prompt context", requestId);
-            List<Map<String, Object>> last4Captions = this.dynamoDBService.getLast4Captions(requestId);
-
-            LOGGER.info("[{}] Generating post caption with AWS Bedrock", requestId);
-            String postCaption = this.captionService.generateCaption(requestId, pokemonData, dollarUp,
-            dollarExchangeRate, last4Captions);
-
             LOGGER.info("[{}] Getting Pokemon image from S3. Pokedex: #{}", requestId, pokedexNumber);
             InputStream pokemonImageStream = this.s3Service.getPokemonImage(requestId, pokemonData.name());
 
-            LOGGER.info("[{}] Editing Pokemon image with exchange rate ${}", requestId, dollarExchangeRate);
-            InputStream editedPokemonImage = this.imageEditingService.editPokemonImage(requestId, dollarExchangeRate,
-                    dollarUp, pokemonData, pokemonImageStream);
+            LOGGER.info("[{}] Analyzing whether the price of the dollar rose or fell", requestId);
+            Boolean dollarUp = dollarUp(requestId, lastDollarRate.orElse(null), dollarExchangeRate);
+
+            LOGGER.info("[{}] Getting Last Posts for AI context", requestId);
+            List<Map<String, Object>> last4Posts = this.dynamoDBService.getLast4Posts(requestId);
+
+            LOGGER.info("[{}] Checking if the image should be special", requestId);
+            boolean isSpecialImage = this.imageService.shouldGenerateSpecialImage(requestId,
+                    pokemonData.name(), pokemonData.isFinalEvolution(), last4Posts, dollarExchangeRate);
+            LOGGER.info("[{}] Special image: {}", requestId, isSpecialImage);
+
+            String backgroundImageDescription = null;
+            if (isSpecialImage) {
+                LOGGER.info("[{}] Background Image will later be generated with AWS Titan", requestId);
+                LOGGER.info("[{}] Generating image background description with AWS Bedrock", requestId);
+                backgroundImageDescription = this.bedrockService.generateImageBackgroundDescription(requestId,
+                    pokemonData);
+            }
+
+            LOGGER.info("[{}] Editing Pokemon image", requestId);
+            InputStream editedPokemonImage = this.imageService.editPokemonImage(requestId, dollarExchangeRate,
+                    dollarUp, pokemonData, pokemonImageStream, isSpecialImage, backgroundImageDescription);
 
             LOGGER.info("[{}] Saving edited image to S3", requestId);
             URL imageUrlToPublish = this.s3Service.savePokemonImage(requestId, editedPokemonImage);
 
-            LOGGER.info("[{}] Posting image to Instagram. Pokedex: #{}", requestId, pokedexNumber);
+            LOGGER.info("[{}] Generating post caption with AWS Bedrock", requestId);
+            String postCaption = this.bedrockService.generateCaption(requestId, pokemonData, dollarUp,
+            dollarExchangeRate, last4Posts);
+
+            LOGGER.info("[{}] Posting image to Instagram", requestId);
             this.instagramService.postPokemonImage(requestId, pokedexNumber, imageUrlToPublish,
                     postCaption);
 
-            LOGGER.info("[{}] Saving new post info in DynamoDB", requestId);
-            this.dynamoDBService.savePost(requestId, pokemonData.name(), dollarExchangeRate, postCaption);
+            LOGGER.info("[{}] Saving new post in DynamoDB", requestId);
+            this.dynamoDBService.savePost(requestId, pokemonData.name(), dollarExchangeRate, postCaption,
+                    isSpecialImage);
         } catch (Exception e) {
             LOGGER.error("[{}] [ERROR] An unexpected error occurred. - {}", requestId, e.getMessage(), e);
         } finally {
@@ -109,7 +123,6 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
         LOGGER.debug("Checking if Dollar Rate changed: {}", dollarRateChanged);
         return dollarRateChanged;
     }
-
 
     private static Boolean dollarUp(String requestId, String lastDollarRate, String dollarExchangeRate) {
         if (lastDollarRate == null) {

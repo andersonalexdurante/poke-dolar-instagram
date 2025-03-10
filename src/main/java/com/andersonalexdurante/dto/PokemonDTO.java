@@ -11,5 +11,6 @@ public record PokemonDTO(
         String name,
         List<String> types,
         Map<String, String> abilities,
-        String description) {
+        String description,
+        boolean isFinalEvolution) {
 }
