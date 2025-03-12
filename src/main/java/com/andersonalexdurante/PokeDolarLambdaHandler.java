@@ -2,6 +2,7 @@ package com.andersonalexdurante;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.andersonalexdurante.dto.DollarVariationDTO;
 import com.andersonalexdurante.dto.PokemonDTO;
 import com.andersonalexdurante.interfaces.IDollarService;
 import com.andersonalexdurante.services.*;
@@ -12,10 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import java.io.InputStream;
-import java.math.BigDecimal;
 import java.net.URL;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -65,14 +63,12 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             InputStream pokemonImageStream = this.s3Service.getPokemonImage(requestId, pokemonData.name());
 
             LOGGER.info("[{}] Analyzing whether the price of the dollar rose or fell", requestId);
-            Boolean dollarUp = dollarUp(requestId, lastDollarRate.orElse(null), dollarExchangeRate);
-
-            LOGGER.info("[{}] Getting Last Posts for AI context", requestId);
-            List<Map<String, Object>> last4Posts = this.dynamoDBService.getLast4Posts(requestId);
+            DollarVariationDTO dollarVariation = getDollarVariation(requestId, lastDollarRate.orElse("0"),
+                    dollarExchangeRate);
 
             LOGGER.info("[{}] Checking if the image should be special", requestId);
             boolean isSpecialImage = this.imageService.shouldGenerateSpecialImage(requestId,
-                    pokemonData.name(), pokemonData.isFinalEvolution(), last4Posts, dollarExchangeRate);
+                    pokemonData.name(), pokemonData.isFinalEvolution(), dollarVariation.variation());
             LOGGER.info("[{}] Special image: {}", requestId, isSpecialImage);
 
             String backgroundImageDescription = null;
@@ -85,14 +81,14 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
 
             LOGGER.info("[{}] Editing Pokemon image", requestId);
             InputStream editedPokemonImage = this.imageService.editPokemonImage(requestId, dollarExchangeRate,
-                    dollarUp, pokemonData, pokemonImageStream, isSpecialImage, backgroundImageDescription);
+                    dollarVariation.isUp(), pokemonData, pokemonImageStream, isSpecialImage, backgroundImageDescription);
 
             LOGGER.info("[{}] Saving edited image to S3", requestId);
             URL imageUrlToPublish = this.s3Service.savePokemonImage(requestId, editedPokemonImage);
 
             LOGGER.info("[{}] Generating post caption with AWS Bedrock", requestId);
-            String postCaption = this.bedrockService.generateCaption(requestId, pokemonData, dollarUp,
-            dollarExchangeRate, last4Posts);
+            String postCaption = this.bedrockService.generateCaption(requestId, pokemonData, dollarVariation,
+                    dollarExchangeRate);
 
             LOGGER.info("[{}] Posting image to Instagram", requestId);
             this.instagramService.postPokemonImage(requestId, pokedexNumber, imageUrlToPublish,
@@ -124,22 +120,17 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
         return dollarRateChanged;
     }
 
-    private static Boolean dollarUp(String requestId, String lastDollarRate, String dollarExchangeRate) {
-        if (lastDollarRate == null) {
-            LOGGER.info("[{}] No previous data to determine whether the dollar rose or fell", requestId);
-            return null;
+    private static DollarVariationDTO getDollarVariation(String requestId, String lastDollarExchangeRate,
+                                            String dollarExchangeRate) {
+        double lastDollarRate = Double.parseDouble(lastDollarExchangeRate.replace(",", "."));
+        double newDollarRate = Double.parseDouble(dollarExchangeRate.replace(",", "."));
+        double variation = Math.abs(newDollarRate - lastDollarRate);
+        if (newDollarRate > lastDollarRate) {
+            LOGGER.info("[{}] BRL to USD rose: {} -> {}", requestId, lastDollarRate, newDollarRate);
+            return new DollarVariationDTO(variation, true);
         }
-
-        BigDecimal lastRate = new BigDecimal(lastDollarRate.replace(",", "."));
-        BigDecimal newRate = new BigDecimal(dollarExchangeRate.replace(",", "."));
-
-        if (newRate.compareTo(lastRate) > 0) {
-            LOGGER.info("[{}] BRL to USD rose: {} → {}", requestId, lastRate, newRate);
-            return Boolean.TRUE;
-        }
-
-        LOGGER.info("[{}] BRL to USD fell: {} → {}", requestId, lastRate, newRate);
-        return Boolean.FALSE;
+        LOGGER.info("[{}] BRL to USD fell: {} -> {}", requestId, lastDollarRate, newDollarRate);
+        return new DollarVariationDTO(variation, false);
     }
 
 }

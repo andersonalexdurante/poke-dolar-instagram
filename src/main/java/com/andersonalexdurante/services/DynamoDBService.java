@@ -10,7 +10,6 @@ import software.amazon.awssdk.services.dynamodb.model.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class DynamoDBService {
@@ -73,38 +72,6 @@ public class DynamoDBService {
         }
 
         return results;
-    }
-
-    public List<Map<String, Object>> getLast4Posts(String requestId) {
-        QueryRequest queryRequest = QueryRequest.builder()
-                .tableName(POKE_DOLAR_POSTS_TABLE)
-                .keyConditionExpression("context_id = :context")
-                .expressionAttributeValues(Map.of(":context", AttributeValue.builder().s("posts").build()))
-                .limit(4)
-                .scanIndexForward(false)
-                .build();
-
-        try {
-            QueryResponse response = this.dynamoDbClient.query(queryRequest);
-            LOGGER.info("[{}] Fetched {} posts successfully.", requestId, response.count());
-
-            List<Map<String, Object>> posts = response.items().stream()
-                    .map(item -> {
-                        Map<String, Object> postMap = new HashMap<>();
-                        item.forEach((key, value) -> postMap.put(key, value.s()));
-                        return postMap;
-                    })
-                    .collect(Collectors.toList());
-
-            if (!posts.isEmpty()) {
-                posts.getFirst().put("lastPost", true);
-            }
-
-            return posts;
-        } catch (Exception e) {
-            LOGGER.error("[{}] Error fetching posts: {}", requestId, e.getMessage(), e);
-            return Collections.emptyList();
-        }
     }
 
     public Optional<String> getLastDollarRate(String requestId) {

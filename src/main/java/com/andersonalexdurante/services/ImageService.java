@@ -35,14 +35,14 @@ public class ImageService {
     String specialImageFinalEvolutionPercentageChance;
     @ConfigProperty(name = "SPECIAL_IMAGE_DOLLAR_CENTS_VARIATION")
     String specialImageDollarCentsVariation;
-    @ConfigProperty(name = "SPECIAL_IMAGE_DOLLAR_CENTS_VARIATION_PERCENTAGE_CHANGE")
+    @ConfigProperty(name = "SPECIAL_IMAGE_DOLLAR_CENTS_VARIATION_PERCENTAGE_CHANCE")
     String specialImageDollarCentsVariationPercentageChance;
 
     @Inject
     DynamoDBService dynamoDBService;
 
     public boolean shouldGenerateSpecialImage(String requestId, String pokemonName, boolean isFinalEvolution,
-                                              List<Map<String, Object>> last4Posts, String dollarRate) {
+                                              double dollarVariation) {
         double chance = Double.parseDouble(this.specialImageInitialPercentageChance);
         LOGGER.debug("[{}] Initial chance set to: {}%", requestId, chance);
 
@@ -58,13 +58,7 @@ public class ImageService {
             LOGGER.info("[{}] Pokemon is final evolution. Chance increased to: {}%", requestId, chance);
         }
 
-        double oldDollarRate = Double.parseDouble(last4Posts.getLast().get("dollar_rate").toString().replace(",", "."));
-        double newDollarRate = Double.parseDouble(dollarRate.replace(",", "."));
-        double variation = Math.abs(newDollarRate - oldDollarRate);
-
-        LOGGER.debug("[{}] Dollar rate variation: {} (Old: {} -> New: {})", requestId, variation, oldDollarRate, newDollarRate);
-
-        if (variation >= Double.parseDouble(this.specialImageDollarCentsVariation)) {
+        if (dollarVariation >= Double.parseDouble(this.specialImageDollarCentsVariation)) {
             chance += Double.parseDouble(this.specialImageDollarCentsVariationPercentageChance);
             LOGGER.info("[{}] Significant dollar variation detected. Chance increased to: {}%", requestId, chance);
         }
@@ -77,7 +71,7 @@ public class ImageService {
     }
 
 
-    public InputStream editPokemonImage(String requestId, String dollarExchangeRate, Boolean dollarup,
+    public InputStream editPokemonImage(String requestId, String dollarExchangeRate, boolean dollarup,
                                         PokemonDTO newPokemon, InputStream pokemonImageStream, boolean specialImage,
                                         String backgroundImageDescription) {
         LOGGER.info("[{}] Starting image generation for Pokemon #{} - {}",

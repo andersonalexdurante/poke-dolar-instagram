@@ -1,5 +1,6 @@
 package com.andersonalexdurante.services;
 
+import com.andersonalexdurante.dto.DollarVariationDTO;
 import com.andersonalexdurante.dto.PokemonDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -10,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
 
-import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
@@ -38,20 +38,21 @@ public class BedrockService {
         return result != null ? result : "";
     }
 
-    public String generateCaption(String requestId, PokemonDTO pokemonData, Boolean dollarUp,
-                                  String dollarExchangeRate, List<Map<String, Object>> last4Posts) {
-        String dollarVariation = Boolean.TRUE.equals(dollarUp) ? "subiu" : Boolean.FALSE.equals(dollarUp) ? "caiu" : null;
-
-        List<String> captions = last4Posts.stream().map(post -> post.get("caption").toString()).toList();
+    public String generateCaption(String requestId, PokemonDTO pokemonData, DollarVariationDTO dollarVariationDTO,
+                                  String dollarExchangeRate) {
+        String dollarVariation = String.format("%s %d",
+                dollarVariationDTO.isUp() ? "subiu" : "caiu",
+                (int) (dollarVariationDTO.variation() * 100));
 
         Map<String, PromptVariableValues> variables = Map.of(
                 "dollar_variation", PromptVariableValues.builder().text(dollarVariation).build(),
                 "dollar_price", PromptVariableValues.builder().text(dollarExchangeRate).build(),
-                "pokemon_data", PromptVariableValues.builder().text(toJson(pokemonData)).build(),
-                "captions_history", PromptVariableValues.builder().text(toJson(captions)).build()
-        );
+                "pokemon_data", PromptVariableValues.builder().text(toJson(pokemonData)).build());
 
         String result = sendRequestToBedrock(requestId, bedrockCaptionPromptArn, variables);
+        if (result != null && result.startsWith("\"") && result.endsWith("\"")) {
+            result = result.replaceAll("^\"|\"$", "");
+        }
         return result != null ? result : "#" + pokemonData.number() + " - " + pokemonData.name();
     }
 
