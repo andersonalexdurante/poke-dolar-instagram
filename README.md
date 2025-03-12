@@ -18,11 +18,14 @@ O **Poke-Dolar-Instagram** automatiza a coleta da cotação do dólar e associa 
 - 📦 **AWS S3** para armazenamento de imagens dos pokémon
 - 📡 **AWS SNS e SSM** para gerenciamento de eventos e segurança
 - ⏰ **AWS EventBridge** para agendamento de execuções automatizadas
-- ✨ **AWS Bedrock** é utilizado para gerar legendas dinâmicas e criativas para os posts com IA generativa, utilizando modelo Llama 3.3 70B Instruct da META
+- ✨ AWS Bedrock é utilizado para:
+    - 📜 Gerar legendas dinâmicas e criativas para os posts com IA generativa, utilizando o modelo Llama 3.3 70B Instruct da META
+    - 🖌️ Gerar os fundos de imagens dos posts de acordo com o Pokémon, utilizando o modelo AWS Titan v2
 - 🗄️ **AWS DynamoDB** para armazenamento dos posts publicados, permitindo que a IA tenha contexto sobre publicações anteriores
 
 ### 🔗 Integrações e APIs
-- 💵 **AwesomeAPI** utilizada para obter a cotação do dólar
+- 💵 **Wise API** utilizada para obter a cotação do dólar
+- 💲 **AwesomeAPI** utilizada como fonte alternativa para a cotação do dólar
 - 👾 **PokeAPI**, utilizada para obter dados sobre os Pokémon
 - 📲 **GraphAPI do Instagram**, utilizada para publicar as imagens de forma automatizada
 
@@ -34,8 +37,9 @@ O projeto é totalmente hospedado na AWS, onde os serviços são orquestrados pa
 2. 💰 A Lambda principal coleta a cotação do dólar e determina o Pokémon correspondente.
 3. 🖼️ Um script em **Python**, executado por outra Lambda, gera uma imagem com as informações.
 4. ✨ AWS Bedrock cria a legenda do post com IA generativa.
-5. 📂 A imagem gerada é armazenada no **S3** e publicada automaticamente via **GraphAPI do Instagram**.
-6. 🗄️ Os posts são armazenados no DynamoDB, permitindo que a IA tenha contexto sobre publicações anteriores.
-7. 🔄 O sistema mantém um mecanismo de **refresh de token**, garantindo a continuidade da autenticação na API do Instagram.
+5. 🖌️ AWS Bedrock gera um fundo de imagem personalizado para o post com o modelo AWS Titan v2
+6. 📂 A imagem gerada é armazenada no **S3** e publicada automaticamente via **GraphAPI do Instagram**.
+7. 🗄️ Os posts são armazenados no DynamoDB, permitindo que a IA tenha contexto sobre publicações anteriores.
+8. 🔄 O sistema mantém um mecanismo de **refresh de token**, garantindo a continuidade da autenticação na API do Instagram.
 
 **👨‍💻 Autor:** Anderson Alex Durante (https://www.linkedin.com/in/andersonalexdurante/)
