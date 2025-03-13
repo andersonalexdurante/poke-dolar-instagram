@@ -29,6 +29,8 @@ public class ImageService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     @ConfigProperty(name = "IMAGE_GENERATOR_LAMBDA")
     String imageGeneratorLambda;
+    @ConfigProperty(name = "ALWAYS_SPECIAL_IMAGE")
+    String alwaysSpecialImage;
     @ConfigProperty(name = "SPECIAL_IMAGE_INITIAL_PERCENTAGE_CHANCE")
     String specialImageInitialPercentageChance;
     @ConfigProperty(name = "SPECIAL_IMAGE_FINAL_EVOLUTION_PERCENTAGE_CHANCE")
@@ -43,6 +45,12 @@ public class ImageService {
 
     public boolean shouldGenerateSpecialImage(String requestId, String pokemonName, boolean isFinalEvolution,
                                               double dollarVariation) {
+
+        if (Boolean.parseBoolean(this.alwaysSpecialImage)) {
+            LOGGER.info("[{}] Always special image enabled. Special image will be generated.", requestId);
+            return true;
+        }
+
         double chance = Double.parseDouble(this.specialImageInitialPercentageChance);
         LOGGER.debug("[{}] Initial chance set to: {}%", requestId, chance);
 
