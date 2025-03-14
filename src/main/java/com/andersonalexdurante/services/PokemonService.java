@@ -113,13 +113,20 @@ public class PokemonService {
     }
 
     private String extractPokemonDescription(JsonNode speciesData) {
+        StringBuilder descriptionBuilder = new StringBuilder();
+
         for (JsonNode entry : speciesData.get("flavor_text_entries")) {
-            if (entry.get("language").get("name").asText().equals("en")) {
-                return entry.get("flavor_text").asText().replace("\n", " ").replace("\f", " ");
+            if ("en".equals(entry.get("language").get("name").asText())) {
+                if (!descriptionBuilder.isEmpty()) {
+                    descriptionBuilder.append(" - "); // Add separator
+                }
+                descriptionBuilder.append(entry.get("flavor_text").asText().replace("\n", " ").replace("\f", " "));
             }
         }
-        return "No description available.";
+
+        return !descriptionBuilder.isEmpty() ? descriptionBuilder.toString() : "No description available.";
     }
+
 
     private JsonNode fetchJsonFromUrl(String url) {
         try {
