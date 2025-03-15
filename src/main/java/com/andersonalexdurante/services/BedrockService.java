@@ -54,7 +54,6 @@ public class BedrockService {
         if (result != null && result.startsWith("\"") && result.endsWith("\"")) {
             result = result.replaceAll("^\"|\"$", "");
         }
-        LOGGER.info(result);
         return result != null ? result : "#" + pokemonData.number() + " - " + pokemonData.name();
     }
 
