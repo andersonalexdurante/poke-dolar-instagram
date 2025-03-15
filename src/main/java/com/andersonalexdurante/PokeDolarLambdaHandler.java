@@ -47,10 +47,10 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
 
         try {
             String dollarExchangeRate = this.dollarService.getDollarExchangeRate(requestId);
-            int pokedexNumber = this.getPokedexNumber(dollarExchangeRate);
+            int pokedexNumber = this.pokemonService.getPokedexNumber(dollarExchangeRate);
             Optional<String> lastDollarRate = this.dynamoDBService.getLastDollarRate(requestId);
 
-            if (!this.dollarRateChanged(lastDollarRate, dollarExchangeRate)) {
+            if (!this.dollarService.dollarRateChanged(lastDollarRate, dollarExchangeRate)) {
                 LOGGER.info("[{}] Dollar rate {} dont changed! The Pokemon #{} has already been published. Skipping",
                         requestId, dollarExchangeRate, pokedexNumber);
                 return null;
@@ -63,8 +63,8 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             InputStream pokemonImageStream = this.s3Service.getPokemonImage(requestId, pokemonData.name());
 
             LOGGER.info("[{}] Analyzing whether the price of the dollar rose or fell", requestId);
-            DollarVariationDTO dollarVariation = getDollarVariation(requestId, lastDollarRate.orElse("0"),
-                    dollarExchangeRate);
+            DollarVariationDTO dollarVariation = this.dollarService.getDollarVariation(requestId,
+                    lastDollarRate.orElse("0"), dollarExchangeRate);
 
             LOGGER.info("[{}] Checking if the image should be special", requestId);
             boolean isSpecialImage = this.imageService.shouldGenerateSpecialImage(requestId,
@@ -106,31 +106,4 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
 
         return null;
     }
-
-    private int getPokedexNumber(String dollarExchangeRate) {
-        int pokedexNumber = Integer.parseInt(dollarExchangeRate.replace(",", ""));
-        LOGGER.debug("Calculated Pokedex number: #{}. Dollar Rate: ${}", pokedexNumber, dollarExchangeRate);
-        return pokedexNumber;
-    }
-
-    private boolean dollarRateChanged(Optional<String> lastDollarRate, String dollarExchangeRate) {
-        boolean dollarRateChanged = lastDollarRate.isEmpty() ||
-                lastDollarRate.map(s -> !s.equals(dollarExchangeRate)).orElse(true);
-        LOGGER.debug("Checking if Dollar Rate changed: {}", dollarRateChanged);
-        return dollarRateChanged;
-    }
-
-    private static DollarVariationDTO getDollarVariation(String requestId, String lastDollarExchangeRate,
-                                            String dollarExchangeRate) {
-        double lastDollarRate = Double.parseDouble(lastDollarExchangeRate.replace(",", "."));
-        double newDollarRate = Double.parseDouble(dollarExchangeRate.replace(",", "."));
-        double variation = Math.abs(newDollarRate - lastDollarRate);
-        if (newDollarRate > lastDollarRate) {
-            LOGGER.info("[{}] BRL to USD rose: {} -> {}", requestId, lastDollarRate, newDollarRate);
-            return new DollarVariationDTO(variation, true);
-        }
-        LOGGER.info("[{}] BRL to USD fell: {} -> {}", requestId, lastDollarRate, newDollarRate);
-        return new DollarVariationDTO(variation, false);
-    }
-
 }

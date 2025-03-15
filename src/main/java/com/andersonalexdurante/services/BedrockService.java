@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 @ApplicationScoped
@@ -42,23 +43,24 @@ public class BedrockService {
                                   String dollarExchangeRate) {
         String dollarVariation = String.format("%s %d",
                 dollarVariationDTO.isUp() ? "subiu" : "caiu",
-                (int) (dollarVariationDTO.variation() * 100));
+                dollarVariationDTO.variation().multiply(BigDecimal.valueOf(100)).intValue());
 
         Map<String, PromptVariableValues> variables = Map.of(
                 "dollar_variation", PromptVariableValues.builder().text(dollarVariation).build(),
                 "dollar_price", PromptVariableValues.builder().text(dollarExchangeRate).build(),
                 "pokemon_data", PromptVariableValues.builder().text(toJson(pokemonData)).build());
 
-        String result = sendRequestToBedrock(requestId, bedrockCaptionPromptArn, variables);
+        String result = sendRequestToBedrock(requestId, this.bedrockCaptionPromptArn, variables);
         if (result != null && result.startsWith("\"") && result.endsWith("\"")) {
             result = result.replaceAll("^\"|\"$", "");
         }
+        LOGGER.info(result);
         return result != null ? result : "#" + pokemonData.number() + " - " + pokemonData.name();
     }
 
     private String toJson(Object object) {
         try {
-            return objectMapper.writeValueAsString(object);
+            return this.objectMapper.writeValueAsString(object);
         } catch (Exception ex) {
             LOGGER.error("[ERROR] Failed to serialize object to JSON: {}", ex.getMessage(), ex);
             return "";
@@ -73,7 +75,7 @@ public class BedrockService {
                     .build();
 
             LOGGER.info("[{}] Sending request to AWS Bedrock...", requestId);
-            ConverseResponse response = bedrockClient.converse(request);
+            ConverseResponse response = this.bedrockClient.converse(request);
 
             String outputText = response.output().message().content().getFirst().text();
             LOGGER.info("[{}] AWS Bedrock output received successfully!", requestId);

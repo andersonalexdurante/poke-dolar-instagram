@@ -62,6 +62,12 @@ public class PokemonService {
         }
     }
 
+    public int getPokedexNumber(String dollarExchangeRate) {
+        int pokedexNumber = Integer.parseInt(dollarExchangeRate.replace(",", ""));
+        LOGGER.debug("Calculated Pokedex number: #{}. Dollar Rate: ${}", pokedexNumber, dollarExchangeRate);
+        return pokedexNumber;
+    }
+
     private boolean checkIfFinalEvolution(JsonNode speciesData) {
         try {
             String evolutionChainUrl = speciesData.get("evolution_chain").get("url").asText();

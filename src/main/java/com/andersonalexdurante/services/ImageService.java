@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +45,7 @@ public class ImageService {
     DynamoDBService dynamoDBService;
 
     public boolean shouldGenerateSpecialImage(String requestId, String pokemonName, boolean isFinalEvolution,
-                                              double dollarVariation) {
+                                              BigDecimal dollarVariation) {
 
         if (Boolean.parseBoolean(this.alwaysSpecialImage)) {
             LOGGER.info("[{}] Always special image enabled. Special image will be generated.", requestId);
@@ -66,7 +67,7 @@ public class ImageService {
             LOGGER.info("[{}] Pokemon is final evolution. Chance increased to: {}%", requestId, chance);
         }
 
-        if (dollarVariation >= Double.parseDouble(this.specialImageDollarCentsVariation)) {
+        if (dollarVariation.compareTo(new BigDecimal(this.specialImageDollarCentsVariation)) >= 0) {
             chance += Double.parseDouble(this.specialImageDollarCentsVariationPercentageChance);
             LOGGER.info("[{}] Significant dollar variation detected. Chance increased to: {}%", requestId, chance);
         }

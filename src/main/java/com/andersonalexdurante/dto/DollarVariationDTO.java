@@ -1,4 +1,6 @@
 package com.andersonalexdurante.dto;
 
-public record DollarVariationDTO(double variation, boolean isUp) {
+import java.math.BigDecimal;
+
+public record DollarVariationDTO(BigDecimal variation, boolean isUp) {
 }
