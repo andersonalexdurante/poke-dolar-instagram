@@ -17,6 +17,8 @@ import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.stream.IntStream;
 
 @ApplicationScoped
 public class InstagramService {
@@ -24,39 +26,48 @@ public class InstagramService {
     private static final Logger LOGGER = LoggerFactory.getLogger(InstagramService.class);
     private static final String INSTAGRAM_ACCESS_TOKEN_PARAMETER = "instagram_access_token";
     private final ObjectMapper objectMapper = new ObjectMapper();
-    @ConfigProperty(name = "INSTAGRAM_CREATE_MEDIA_CONTAINER_URL")
-    String createMediaContainerUrl;
-    @ConfigProperty(name = "INSTAGRAM_PUBLISH_MEDIA_CONTAINER_URL")
-    String publishMediaContainerUrl;
+    @ConfigProperty(name = "INSTAGRAM_GRAPH_API_URL")
+    String instagramGraphApiUrl;
+    @ConfigProperty(name = "INSTAGRAM_POKEDOLAR_USERID")
+    String instagramPokedolarUserId;
 
     @Inject
     SsmService ssmService;
 
-    public void postPokemonImage(String requestId, int pokedexNumber, URL pokemonImageUrl, String postCaption) {
+    public void post(String requestId, int pokedexNumber, URL postVideoUrl, String postCaption) {
         LOGGER.info("[{}] Starting Instagram post... Pokemon: #{}", requestId, pokedexNumber);
         try {
-            String accessToken =
-                    this.ssmService.getStringParameterWithDecryption(requestId, INSTAGRAM_ACCESS_TOKEN_PARAMETER);
-            String idMediaContainer = this.createMediaContainer(requestId, pokemonImageUrl,
-                    postCaption, pokedexNumber, accessToken);
+            String accessToken = this.ssmService.getStringParameterWithDecryption(requestId, INSTAGRAM_ACCESS_TOKEN_PARAMETER);
+            String idMediaContainer = this.createMediaContainer(requestId, postVideoUrl, postCaption, pokedexNumber, accessToken);
+
+            boolean ready = this.waitUntilMediaIsReady(requestId, idMediaContainer, accessToken);
+            if (!ready) {
+                throw new InstagramApiException("Media is not ready after waiting. Aborting publish.");
+            }
+
             String idPublishedContainer = this.publishMediaContainer(requestId, idMediaContainer, accessToken);
-            LOGGER.info("[{}] Pokemon image posted successfully! ID: {}", requestId, idPublishedContainer);
+            LOGGER.info("[{}] Pokemon video posted successfully! ID: {}", requestId, idPublishedContainer);
         } catch (Exception e) {
-            LOGGER.error("[{}] Error while posting image to Instagram!", requestId, e);
+            LOGGER.error("[{}] Error while posting video to Instagram!", requestId, e);
+            throw new InstagramApiException("Error while posting video to Instagram.", e);
         }
     }
 
-    private String createMediaContainer(String requestId, URL pokemonImageUrl, String postCaption,
+
+    private String createMediaContainer(String requestId, URL postVideoUrl, String postCaption,
                                         int pokedexNumber, String accessToken) {
         try {
             CreateMediaContainerDTO createMediaContainerDTO =
-                    new CreateMediaContainerDTO(pokemonImageUrl.toString(), postCaption);
+                    new CreateMediaContainerDTO(postVideoUrl.toString(), postCaption);
 
             LOGGER.info("[{}] Creating Media Container for Pokemon #{}...", requestId, pokedexNumber);
 
+            URI createMediaContainerUri = URI.create(this.instagramGraphApiUrl + this.instagramPokedolarUserId
+                    + "/media" + "?access_token=" + accessToken);
+
             HttpResponse<String> response = HttpClient.newHttpClient().send(HttpRequest.newBuilder()
                     .header("Content-Type", MediaType.APPLICATION_JSON)
-                    .uri(URI.create(this.createMediaContainerUrl + "?access_token=" + accessToken))
+                    .uri(createMediaContainerUri)
                     .POST(HttpRequest.BodyPublishers.ofString(this.objectMapper.writeValueAsString(createMediaContainerDTO)))
                     .build(), HttpResponse.BodyHandlers.ofString());
 
@@ -81,9 +92,12 @@ public class InstagramService {
 
             LOGGER.info("[{}] Publishing Media Container ID: {}...", requestId, idMediaContainer);
 
+            URI publishMediaUri = URI.create(this.instagramGraphApiUrl + this.instagramPokedolarUserId
+                    + "/media_publish" + "?access_token=" + accessToken);
+
             HttpResponse<String> response = HttpClient.newHttpClient().send(HttpRequest.newBuilder()
                     .header("Content-Type", MediaType.APPLICATION_JSON)
-                    .uri(URI.create(this.publishMediaContainerUrl + "?access_token=" + accessToken))
+                    .uri(publishMediaUri)
                     .POST(HttpRequest.BodyPublishers.ofString(this.objectMapper.writeValueAsString(publishMediaContainerDTO)))
                     .build(), HttpResponse.BodyHandlers.ofString());
 
@@ -101,4 +115,46 @@ public class InstagramService {
             throw new InstagramApiException("Error while publishing media container.", ex);
         }
     }
+
+    private boolean waitUntilMediaIsReady(String requestId, String mediaId, String accessToken) {
+        final int maxAttempts = 10;
+        final Duration delay = Duration.ofSeconds(5);
+        final HttpClient client = HttpClient.newHttpClient();
+
+        URI verifyMediaStatus = URI.create(this.instagramGraphApiUrl + mediaId + "?fields=status_code" +
+                "&access_token=" + accessToken);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(verifyMediaStatus)
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+
+        return IntStream.range(0, maxAttempts)
+                .mapToObj(attempt -> {
+                    try {
+                        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                        String status = objectMapper.readTree(response.body()).path("status_code").asText();
+
+                        LOGGER.info("[{}] Attempt {}/{} - Media status for ID {}: {}", requestId, attempt + 1,
+                                maxAttempts, mediaId, status);
+
+                        if ("FINISHED".equalsIgnoreCase(status)) return true;
+
+                        Thread.sleep(delay.toMillis());
+                    } catch (Exception e) {
+                        LOGGER.warn("[{}] Attempt {}/{} - Error checking media status: {}", requestId, attempt + 1,
+                                maxAttempts, e.getMessage());
+                        try {
+                            Thread.sleep(delay.toMillis());
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            return false;
+                        }
+                    }
+                    return false;
+                })
+                .anyMatch(ready -> ready);
+    }
+
 }

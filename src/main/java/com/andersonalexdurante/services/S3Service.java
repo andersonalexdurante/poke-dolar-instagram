@@ -1,11 +1,9 @@
 package com.andersonalexdurante.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -23,10 +21,8 @@ public class S3Service {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(S3Service.class);
     private static final String BUCKET = "pokedolarbucket";
-    private static final String POKEMON_IMAGES_FOLDER = "pokemon/";
-    private static final String LAST_POKEMON_IMAGE_KEY = "lastPublishedPokemonImage.png";
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String LAST_POST_VIDEO = "lastPost.mp4";
+    private static final String SPRITES_FOLDER = "sprites/";
 
     @Inject
     S3Client s3Client;
@@ -34,8 +30,7 @@ public class S3Service {
     S3Presigner s3Presigner;
 
     public InputStream getPokemonImage(String requestId, String pokemonName) {
-        String baseFolder = "sprites/";
-        String searchPrefix = baseFolder + pokemonName.toLowerCase();
+        String searchPrefix = SPRITES_FOLDER + pokemonName.toLowerCase();
         LOGGER.info("[{}] Searching for Pokemon images in S3. Base name: {}", requestId, pokemonName);
 
         try {
@@ -88,25 +83,8 @@ public class S3Service {
         }
     }
 
-    public URL savePokemonImage(String requestId, InputStream inputStream) {
-        LOGGER.info("[{}] Saving Pokemon image to S3", requestId);
-
-        try {
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(BUCKET)
-                    .key(LAST_POKEMON_IMAGE_KEY)
-                    .contentType("image/png")
-                    .build();
-
-            long contentLength = inputStream.available();
-            this.s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(inputStream, contentLength));
-
-            LOGGER.info("[{}] Image uploaded to S3 successfully!", requestId);
-            return this.generatePresignedUrl(requestId, LAST_POKEMON_IMAGE_KEY);
-        } catch (Exception ex) {
-            LOGGER.error("[{}] Failed to save image to S3. - {}", requestId, ex.getMessage(), ex);
-            throw new RuntimeException("Failed to save image to S3", ex);
-        }
+    public URL getPostVideoUrl(String requestId) {
+        return this.generatePresignedUrl(requestId, LAST_POST_VIDEO);
     }
 
     private URL generatePresignedUrl(String requestId, String key) {

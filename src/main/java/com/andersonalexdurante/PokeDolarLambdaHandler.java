@@ -32,7 +32,7 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
     @Inject
     S3Service s3Service;
     @Inject
-    ImageService imageService;
+    VideoService videoService;
     @Inject
     BedrockService bedrockService;
     @Inject
@@ -67,7 +67,7 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
                     lastDollarRate.orElse("0"), dollarExchangeRate);
 
             LOGGER.info("[{}] Checking if the image should be special", requestId);
-            boolean isSpecialImage = this.imageService.shouldGenerateSpecialImage(requestId,
+            boolean isSpecialImage = this.videoService.shouldGenerateSpecialImage(requestId,
                     pokemonData.name(), pokemonData.isFinalEvolution(), dollarVariation.variation());
             LOGGER.info("[{}] Special image: {}", requestId, isSpecialImage);
 
@@ -79,19 +79,19 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
                     pokemonData);
             }
 
-            LOGGER.info("[{}] Editing Pokemon image", requestId);
-            InputStream editedPokemonImage = this.imageService.editPokemonImage(requestId, dollarExchangeRate,
+            LOGGER.info("[{}] Starting video generation", requestId);
+            this.videoService.generatePostVideo(requestId, dollarExchangeRate,
                     dollarVariation.isUp(), pokemonData, pokemonImageStream, isSpecialImage, backgroundImageDescription);
 
-            LOGGER.info("[{}] Saving edited image to S3", requestId);
-            URL imageUrlToPublish = this.s3Service.savePokemonImage(requestId, editedPokemonImage);
+            LOGGER.info("[{}] Getting post video URL from S3", requestId);
+            URL postVideoUrl = this.s3Service.getPostVideoUrl(requestId);
 
             LOGGER.info("[{}] Generating post caption with AWS Bedrock", requestId);
             String postCaption = this.bedrockService.generateCaption(requestId, pokemonData, dollarVariation,
                     dollarExchangeRate);
 
             LOGGER.info("[{}] Posting image to Instagram", requestId);
-            this.instagramService.postPokemonImage(requestId, pokedexNumber, imageUrlToPublish,
+            this.instagramService.post(requestId, pokedexNumber, postVideoUrl,
                     postCaption);
 
             LOGGER.info("[{}] Saving new post in DynamoDB", requestId);
