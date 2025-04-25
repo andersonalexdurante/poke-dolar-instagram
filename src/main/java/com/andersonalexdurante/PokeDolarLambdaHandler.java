@@ -12,7 +12,7 @@ import jakarta.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import java.io.InputStream;
+
 import java.net.URL;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,29 +59,17 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             LOGGER.info("[{}] Fetching Pokemon data for Pokedex #{}", requestId, pokedexNumber);
             PokemonDTO pokemonData = this.pokemonService.getPokemonData(requestId, pokedexNumber);
 
-            LOGGER.info("[{}] Getting Pokemon image from S3. Pokedex: #{}", requestId, pokedexNumber);
-            InputStream pokemonImageStream = this.s3Service.getPokemonImage(requestId, pokemonData.name());
-
             LOGGER.info("[{}] Analyzing whether the price of the dollar rose or fell", requestId);
             DollarVariationDTO dollarVariation = this.dollarService.getDollarVariation(requestId,
                     lastDollarRate.orElse("0"), dollarExchangeRate);
 
-            LOGGER.info("[{}] Checking if the image should be special", requestId);
-            boolean isSpecialImage = this.videoService.shouldGenerateSpecialImage(requestId,
-                    pokemonData.name(), pokemonData.isFinalEvolution(), dollarVariation.variation());
-            LOGGER.info("[{}] Special image: {}", requestId, isSpecialImage);
-
-            String backgroundImageDescription = null;
-            if (isSpecialImage) {
-                LOGGER.info("[{}] Background Image will later be generated with AWS Titan", requestId);
-                LOGGER.info("[{}] Generating image background description with AWS Bedrock", requestId);
-                backgroundImageDescription = this.bedrockService.generateImageBackgroundDescription(requestId,
+            LOGGER.info("[{}] Generating image background description with AWS Bedrock", requestId);
+            String backgroundImageDescription = this.bedrockService.generateImageBackgroundDescription(requestId,
                     pokemonData);
-            }
 
             LOGGER.info("[{}] Starting video generation", requestId);
             this.videoService.generatePostVideo(requestId, dollarExchangeRate,
-                    dollarVariation.isUp(), pokemonData, pokemonImageStream, isSpecialImage, backgroundImageDescription);
+                    dollarVariation.isUp(), pokemonData, backgroundImageDescription);
 
             LOGGER.info("[{}] Getting post video URL from S3", requestId);
             URL postVideoUrl = this.s3Service.getPostVideoUrl(requestId);
@@ -90,13 +78,12 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             String postCaption = this.bedrockService.generateCaption(requestId, pokemonData, dollarVariation,
                     dollarExchangeRate);
 
-            LOGGER.info("[{}] Posting image to Instagram", requestId);
+            LOGGER.info("[{}] Posting video to Instagram", requestId);
             this.instagramService.post(requestId, pokedexNumber, postVideoUrl,
                     postCaption);
 
             LOGGER.info("[{}] Saving new post in DynamoDB", requestId);
-            this.dynamoDBService.savePost(requestId, pokemonData.name(), dollarExchangeRate, postCaption,
-                    isSpecialImage);
+            this.dynamoDBService.savePost(requestId, pokemonData.name(), dollarExchangeRate, postCaption);
         } catch (Exception e) {
             LOGGER.error("[{}] [ERROR] An unexpected error occurred. - {}", requestId, e.getMessage(), e);
         } finally {

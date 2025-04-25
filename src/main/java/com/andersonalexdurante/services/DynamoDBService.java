@@ -8,7 +8,6 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @ApplicationScoped
@@ -20,14 +19,13 @@ public class DynamoDBService {
     @Inject
     DynamoDbClient dynamoDbClient;
 
-    public void savePost(String requestId, String pokemon, String dollarValue, String caption, boolean specialImage) {
+    public void savePost(String requestId, String pokemon, String dollarValue, String caption) {
         Map<String, AttributeValue> item = new HashMap<>();
         item.put("context_id", AttributeValue.builder().s("posts").build());
         item.put("timestamp", AttributeValue.builder().s(Instant.now().toString()).build());
         item.put("pokemon", AttributeValue.builder().s(pokemon).build());
         item.put("dollar_rate", AttributeValue.builder().s(String.valueOf(dollarValue)).build());
         item.put("caption", AttributeValue.builder().s(caption).build());
-        item.put("special_image", AttributeValue.builder().s(String.valueOf(specialImage)).build());
 
         PutItemRequest request = PutItemRequest.builder()
                 .tableName(POKE_DOLAR_POSTS_TABLE)
@@ -40,38 +38,6 @@ public class DynamoDBService {
         } catch (Exception e) {
             LOGGER.error("[{}] Error saving post: {}", requestId, e.getMessage(), e);
         }
-    }
-
-    public List<Map<String, AttributeValue>> getRecentSpecialImagePosts(String pokemon) {
-        Instant thirtyDaysAgo = Instant.now().minus(30, ChronoUnit.DAYS);
-
-        QueryRequest queryRequest = QueryRequest.builder()
-                .tableName(POKE_DOLAR_POSTS_TABLE)
-                .keyConditionExpression("context_id = :context AND #timestamp >= :date")
-                .filterExpression("pokemon = :pokemon AND special_image = :special")
-                .expressionAttributeNames(Map.of(
-                        "#timestamp", "timestamp" // Mapeando o "timestamp" para "#timestamp"
-                ))
-                .expressionAttributeValues(Map.of(
-                        ":context", AttributeValue.builder().s("posts").build(),
-                        ":pokemon", AttributeValue.builder().s(pokemon).build(),
-                        ":date", AttributeValue.builder().s(thirtyDaysAgo.toString()).build(),
-                        ":special", AttributeValue.builder().s("true").build()
-                ))
-                .build();
-
-        List<Map<String, AttributeValue>> results = new ArrayList<>();
-
-        try {
-            QueryResponse response = this.dynamoDbClient.query(queryRequest);
-            results = response.items();
-            LOGGER.info("Found {} posts with special image for Pokemon {} in the last 30 days.", results.size(),
-                    pokemon);
-        } catch (Exception e) {
-            LOGGER.error("Error querying DynamoDB for Pokemon {}: {}", pokemon, e.getMessage(), e);
-        }
-
-        return results;
     }
 
     public Optional<String> getLastDollarRate(String requestId) {
