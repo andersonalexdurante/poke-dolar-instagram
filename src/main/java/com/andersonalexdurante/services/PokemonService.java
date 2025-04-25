@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.random.RandomGenerator;
+import java.util.stream.StreamSupport;
 
 @ApplicationScoped
 public class PokemonService {
@@ -48,12 +50,11 @@ public class PokemonService {
                 String speciesUrl = rootNode.get("species").get("url").asText();
                 JsonNode speciesData = fetchJsonFromUrl(speciesUrl);
                 String description = extractPokemonDescription(speciesData);
-                boolean isFinalEvolution = checkIfFinalEvolution(speciesData);
 
-                LOGGER.info("[{}] Successfully fetched Pokemon: {} (Pokedex Number: {} | Final Evolution: {})",
-                        requestId, name, pokedexNumber, isFinalEvolution);
+                LOGGER.info("[{}] Successfully fetched Pokemon: {} (Pokedex Number: {})",
+                        requestId, name, pokedexNumber);
 
-                return new PokemonDTO(pokedexNumber, name, types, abilities, description, isFinalEvolution);
+                return new PokemonDTO(pokedexNumber, name, types, abilities, description);
             } else {
                 throw new PokemonException("Failed to fetch PokeAPI. HTTP status: " + response.statusCode());
             }
@@ -66,29 +67,6 @@ public class PokemonService {
         int pokedexNumber = Integer.parseInt(dollarExchangeRate.replace(",", ""));
         LOGGER.debug("Calculated Pokedex number: #{}. Dollar Rate: ${}", pokedexNumber, dollarExchangeRate);
         return pokedexNumber;
-    }
-
-    private boolean checkIfFinalEvolution(JsonNode speciesData) {
-        try {
-            String evolutionChainUrl = speciesData.get("evolution_chain").get("url").asText();
-            JsonNode evolutionChain = fetchJsonFromUrl(evolutionChainUrl).get("chain");
-            return isLastEvolutionStage(evolutionChain, speciesData.get("name").asText());
-        } catch (Exception ex) {
-            LOGGER.error("Error fetching evolution chain: {}", ex.getMessage(), ex);
-            return false;
-        }
-    }
-
-    private boolean isLastEvolutionStage(JsonNode evolutionNode, String currentPokemonName) {
-        if (evolutionNode.get("species").get("name").asText().equals(currentPokemonName)) {
-            return evolutionNode.get("evolves_to").isEmpty();
-        }
-        for (JsonNode nextStage : evolutionNode.get("evolves_to")) {
-            if (isLastEvolutionStage(nextStage, currentPokemonName)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private List<String> extractTypes(JsonNode rootNode) {
@@ -119,20 +97,17 @@ public class PokemonService {
     }
 
     private String extractPokemonDescription(JsonNode speciesData) {
-        StringBuilder descriptionBuilder = new StringBuilder();
+        List<String> descriptions = StreamSupport.stream(speciesData.get("flavor_text_entries").spliterator(), false)
+                .filter(entry -> "en".equals(entry.get("language").get("name").asText()))
+                .map(entry -> entry.get("flavor_text").asText().replace("\n", " ").replace("\f", " "))
+                .toList();
 
-        for (JsonNode entry : speciesData.get("flavor_text_entries")) {
-            if ("en".equals(entry.get("language").get("name").asText())) {
-                if (!descriptionBuilder.isEmpty()) {
-                    descriptionBuilder.append(" - "); // Add separator
-                }
-                descriptionBuilder.append(entry.get("flavor_text").asText().replace("\n", " ").replace("\f", " "));
-            }
+        if (descriptions.isEmpty()) {
+            return "No description available.";
         }
 
-        return !descriptionBuilder.isEmpty() ? descriptionBuilder.toString() : "No description available.";
+        return descriptions.get(RandomGenerator.getDefault().nextInt(descriptions.size()));
     }
-
 
     private JsonNode fetchJsonFromUrl(String url) {
         try {

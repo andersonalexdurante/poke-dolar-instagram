@@ -4,7 +4,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -19,10 +18,7 @@ public class S3Service {
     private static final Logger LOGGER = LoggerFactory.getLogger(S3Service.class);
     private static final String BUCKET = "pokedolarbucket";
     private static final String LAST_POST_VIDEO = "lastPost.mp4";
-    private static final String SPRITES_FOLDER = "sprites/";
 
-    @Inject
-    S3Client s3Client;
     @Inject
     S3Presigner s3Presigner;
 
