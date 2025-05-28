@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.andersonalexdurante.dto.DollarVariationDTO;
 import com.andersonalexdurante.dto.PokemonDTO;
+import com.andersonalexdurante.dto.RandomSelection;
 import com.andersonalexdurante.interfaces.IDollarService;
 import com.andersonalexdurante.services.*;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -37,6 +38,8 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
     BedrockService bedrockService;
     @Inject
     InstagramService instagramService;
+    @Inject
+    RandomnessService randomnessService;
 
     @Override
     public Void handleRequest(Object event, Context context) {
@@ -63,9 +66,12 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             DollarVariationDTO dollarVariation = this.dollarService.getDollarVariation(requestId,
                     lastDollarRate.orElse("0"), dollarExchangeRate);
 
+            LOGGER.info("[{}] Generating random options for background image", requestId);
+            RandomSelection randomOptions = this.randomnessService.getRandomOptions(requestId);
+
             LOGGER.info("[{}] Generating image background description with AWS Bedrock", requestId);
             String backgroundImageDescription = this.bedrockService.generateImageBackgroundDescription(requestId,
-                    pokemonData);
+                    pokemonData, randomOptions);
 
             LOGGER.info("[{}] Starting video generation", requestId);
             this.videoService.generatePostVideo(requestId, dollarExchangeRate,

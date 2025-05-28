@@ -1,7 +1,9 @@
 package com.andersonalexdurante.services;
 
+import com.andersonalexdurante.dto.BackgroundImageDescriptionDTO;
 import com.andersonalexdurante.dto.DollarVariationDTO;
 import com.andersonalexdurante.dto.PokemonDTO;
+import com.andersonalexdurante.dto.RandomSelection;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -32,10 +34,14 @@ public class BedrockService {
     BedrockRuntimeClient bedrockClient;
 
 
-    public String generateImageBackgroundDescription(String requestId, PokemonDTO pokemonDTO) {
+    public String generateImageBackgroundDescription(String requestId, PokemonDTO pokemonDTO,
+                                                     RandomSelection randomSelection) {
+        BackgroundImageDescriptionDTO backgroundImageDescriptionDTO =
+                new BackgroundImageDescriptionDTO(pokemonDTO, randomSelection);
+
         LOGGER.info("[{}] Using prompt: {}", requestId, bedrockImageBackgroundPromptArn);
         Map<String, PromptVariableValues> variables = Map.of(
-                "pokemon_data", PromptVariableValues.builder().text(toJson(pokemonDTO)).build()
+                "pokemon_data", PromptVariableValues.builder().text(toJson(backgroundImageDescriptionDTO)).build()
         );
 
         String result = sendRequestToBedrock(requestId, this.bedrockImageBackgroundPromptArn, variables);
