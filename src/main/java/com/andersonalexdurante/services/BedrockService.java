@@ -50,7 +50,7 @@ public class BedrockService {
 
     public String generateCaption(String requestId, PokemonDTO pokemonData, DollarVariationDTO dollarVariationDTO,
                                   String dollarExchangeRate) {
-        String dollarVariation = String.format("%s %d centavos",
+        String dollarVariation = String.format("%s %d",
                 dollarVariationDTO.isUp() ? "subiu" : "caiu",
                 dollarVariationDTO.variation().multiply(BigDecimal.valueOf(100)).intValue());
 
