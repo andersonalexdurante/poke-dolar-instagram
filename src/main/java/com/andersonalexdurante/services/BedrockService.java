@@ -45,6 +45,7 @@ public class BedrockService {
         );
 
         String result = sendRequestToBedrock(requestId, this.bedrockImageBackgroundPromptArn, variables);
+        LOGGER.info("{}", result);
         return result != null ? result : "";
     }
 
@@ -71,6 +72,7 @@ public class BedrockService {
         if (result != null && result.startsWith("\"") && result.endsWith("\"")) {
             result = result.replaceAll("^\"|\"$", "");
         }
+        LOGGER.info("Caption: {}", result);
         return result != null ? result : "#" + pokemonData.number() + " - " + pokemonData.name();
     }
 

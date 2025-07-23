@@ -1,18 +1,12 @@
 {
   "time_of_day": [
     "dawn",
-    "early morning",
     "morning",
-    "late morning",
-    "noon",
-    "early afternoon",
-    "late afternoon",
+    "afternoon",
     "dusk",
     "twilight",
     "evening",
-    "night",
-    "midnight",
-    "pre-dawn"
+    "night"
   ],
   "weather": [
     "clear sky",
@@ -21,26 +15,15 @@
     "misty",
     "foggy",
     "light drizzle",
-    "steady rain",
     "heavy rain",
     "thunderstorms",
-    "snow flurries",
-    "light snowfall",
     "heavy snowfall",
-    "gentle breeze",
     "strong wind"
   ],
   "season": [
-    "early spring",
-    "late spring",
-    "early summer",
-    "midsummer",
-    "late summer",
-    "early autumn",
-    "mid-autumn",
-    "late autumn",
-    "early winter",
-    "midwinter",
-    "late winter"
+    "spring",
+    "summer",
+    "autumn",
+    "winter"
   ]
 }

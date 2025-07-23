@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Random;
 
@@ -67,9 +68,10 @@ public class RandomnessService {
 
     private <T> T getRandomElement(List<T> list) {
         if (list == null || list.isEmpty()) {
-            throw new IllegalArgumentException("List cannot be null or empty");
+            return null;
         }
-        return list.get(random.nextInt(list.size()));
+        SecureRandom secureRandom = new SecureRandom();
+        return list.get(secureRandom.nextInt(list.size()));
     }
 
 }

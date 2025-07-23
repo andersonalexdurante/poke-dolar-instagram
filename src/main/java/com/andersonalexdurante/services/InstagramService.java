@@ -118,7 +118,7 @@ public class InstagramService {
 
     private boolean waitUntilMediaIsReady(String requestId, String mediaId, String accessToken) {
         final int maxAttempts = 10;
-        final Duration delay = Duration.ofSeconds(5);
+        final Duration delay = Duration.ofSeconds(15);
         final HttpClient client = HttpClient.newHttpClient();
 
         URI verifyMediaStatus = URI.create(this.instagramGraphApiUrl + mediaId + "?fields=status_code" +
