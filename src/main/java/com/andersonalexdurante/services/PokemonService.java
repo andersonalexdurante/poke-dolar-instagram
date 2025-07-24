@@ -14,10 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.random.RandomGenerator;
 import java.util.stream.StreamSupport;
 
 @ApplicationScoped
@@ -45,16 +42,16 @@ public class PokemonService {
                 JsonNode rootNode = this.objectMapper.readTree(response.body());
                 String name = rootNode.get("species").get("name").asText().toUpperCase();
                 List<String> types = extractTypes(rootNode);
-                Map<String, String> abilities = extractAbilitiesWithDescriptions(rootNode);
 
                 String speciesUrl = rootNode.get("species").get("url").asText();
                 JsonNode speciesData = fetchJsonFromUrl(speciesUrl);
-                String description = extractPokemonDescription(speciesData);
+                List<String> descriptions = extractPokemonDescriptions(speciesData);
+                String habitat = extractHabitat(speciesData);
 
                 LOGGER.info("[{}] Successfully fetched Pokemon: {} (Pokedex Number: {})",
                         requestId, name, pokedexNumber);
 
-                return new PokemonDTO(pokedexNumber, name, types, abilities, description);
+                return new PokemonDTO(pokedexNumber, name, types, descriptions, habitat);
             } else {
                 throw new PokemonException("Failed to fetch PokeAPI. HTTP status: " + response.statusCode());
             }
@@ -75,38 +72,20 @@ public class PokemonService {
         return types;
     }
 
-    private Map<String, String> extractAbilitiesWithDescriptions(JsonNode rootNode) {
-        Map<String, String> abilities = new LinkedHashMap<>();
-        rootNode.get("abilities").forEach(abilityNode -> {
-            String abilityName = abilityNode.get("ability").get("name").asText();
-            String abilityUrl = abilityNode.get("ability").get("url").asText();
-            String abilityDescription = fetchAbilityDescription(abilityUrl);
-            abilities.put(abilityName, abilityDescription);
-        });
-        return abilities;
-    }
-
-    private String fetchAbilityDescription(String abilityUrl) {
-        JsonNode abilityNode = fetchJsonFromUrl(abilityUrl);
-        for (JsonNode entry : abilityNode.get("flavor_text_entries")) {
-            if (entry.get("language").get("name").asText().equals("en")) {
-                return entry.get("flavor_text").asText().replace("\n", " ").replace("\f", " ");
-            }
-        }
-        return "No description available.";
-    }
-
-    private String extractPokemonDescription(JsonNode speciesData) {
+    private List<String> extractPokemonDescriptions(JsonNode speciesData) {
         List<String> descriptions = StreamSupport.stream(speciesData.get("flavor_text_entries").spliterator(), false)
                 .filter(entry -> "en".equals(entry.get("language").get("name").asText()))
                 .map(entry -> entry.get("flavor_text").asText().replace("\n", " ").replace("\f", " "))
                 .toList();
 
-        if (descriptions.isEmpty()) {
-            return "No description available.";
-        }
+        return descriptions.isEmpty() ? List.of("No description available.") : descriptions;
+    }
 
-        return descriptions.get(RandomGenerator.getDefault().nextInt(descriptions.size()));
+    private String extractHabitat(JsonNode speciesData) {
+        if (speciesData.has("habitat") && !speciesData.get("habitat").isNull()) {
+            return speciesData.get("habitat").get("name").asText();
+        }
+        return "unknown";
     }
 
     private JsonNode fetchJsonFromUrl(String url) {

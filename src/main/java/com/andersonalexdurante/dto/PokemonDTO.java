@@ -10,6 +10,6 @@ public record PokemonDTO(
         int number,
         String name,
         List<String> types,
-        Map<String, String> abilities,
-        String description) {
+        List<String> descriptions,
+        String habitat) {
 }

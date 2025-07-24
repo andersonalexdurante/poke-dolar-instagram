@@ -77,12 +77,12 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             this.videoService.generatePostVideo(requestId, dollarExchangeRate,
                     dollarVariation.isUp(), pokemonData, backgroundImageDescription);
 
-            LOGGER.info("[{}] Getting post video URL from S3", requestId);
-            URL postVideoUrl = this.s3Service.getPostVideoUrl(requestId);
-
             LOGGER.info("[{}] Generating post caption with AWS Bedrock", requestId);
             String postCaption = this.bedrockService.generateCaption(requestId, pokemonData, dollarVariation,
                     dollarExchangeRate);
+
+            LOGGER.info("[{}] Getting post video URL from S3", requestId);
+            URL postVideoUrl = this.s3Service.getPostVideoUrl(requestId);
 
             LOGGER.info("[{}] Posting video to Instagram", requestId);
             this.instagramService.post(requestId, pokedexNumber, postVideoUrl,

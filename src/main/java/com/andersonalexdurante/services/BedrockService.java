@@ -1,6 +1,5 @@
 package com.andersonalexdurante.services;
 
-import com.andersonalexdurante.dto.BackgroundImageDescriptionDTO;
 import com.andersonalexdurante.dto.DollarVariationDTO;
 import com.andersonalexdurante.dto.PokemonDTO;
 import com.andersonalexdurante.dto.RandomSelection;
@@ -36,12 +35,14 @@ public class BedrockService {
 
     public String generateImageBackgroundDescription(String requestId, PokemonDTO pokemonDTO,
                                                      RandomSelection randomSelection) {
-        BackgroundImageDescriptionDTO backgroundImageDescriptionDTO =
-                new BackgroundImageDescriptionDTO(pokemonDTO, randomSelection);
 
         LOGGER.info("[{}] Using prompt: {}", requestId, bedrockImageBackgroundPromptArn);
         Map<String, PromptVariableValues> variables = Map.of(
-                "pokemon_data", PromptVariableValues.builder().text(toJson(backgroundImageDescriptionDTO)).build()
+                "types", PromptVariableValues.builder().text(toJson(pokemonDTO.types())).build(),
+                "habitat", PromptVariableValues.builder().text(pokemonDTO.habitat()).build(),
+                "time_of_day", PromptVariableValues.builder().text(randomSelection.timeOfDay().getValue()).build(),
+                "season", PromptVariableValues.builder().text(randomSelection.season().getValue()).build(),
+                "weather", PromptVariableValues.builder().text(randomSelection.weather().getValue()).build()
         );
 
         String result = sendRequestToBedrock(requestId, this.bedrockImageBackgroundPromptArn, variables);
@@ -65,8 +66,8 @@ public class BedrockService {
                 "day_of_week", PromptVariableValues.builder().text(formattedDate).build(),
                 "pokemon_name", PromptVariableValues.builder().text(pokemonData.name()).build(),
                 "pokemon_types", PromptVariableValues.builder().text(toJson(pokemonData.types())).build(),
-                "pokemon_abilities", PromptVariableValues.builder().text(toJson(pokemonData.abilities())).build(),
-                "pokemon_description", PromptVariableValues.builder().text(pokemonData.description()).build());
+                "pokemon_descriptions",
+                PromptVariableValues.builder().text(toJson(pokemonData.descriptions())).build());
 
         String result = sendRequestToBedrock(requestId, this.bedrockCaptionPromptArn, variables);
         if (result != null && result.startsWith("\"") && result.endsWith("\"")) {
