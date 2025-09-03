@@ -15,23 +15,32 @@ public interface IDollarService {
     String getDollarExchangeRate(String requestId);
 
     default boolean dollarRateChanged(Optional<String> lastDollarRate, String dollarExchangeRate) {
-        boolean dollarRateChanged = lastDollarRate.isEmpty() ||
-                lastDollarRate.map(s -> !s.equals(dollarExchangeRate)).orElse(true);
-        LOGGER.debug("Checking if Dollar Rate changed: {}", dollarRateChanged);
-        return dollarRateChanged;
+        if (lastDollarRate.isEmpty()) {
+            return true;
+        }
+
+        double lastRate = Double.parseDouble(lastDollarRate.get().replace(",", "."));
+        double currentRate = Double.parseDouble(dollarExchangeRate.replace(",", "."));
+
+        boolean changed = lastRate != currentRate;
+        LOGGER.debug("Checking if Dollar Rate changed: {}", changed);
+        return changed;
     }
 
     default DollarVariationDTO getDollarVariation(String requestId, String lastDollarExchangeRate,
                                                   String dollarExchangeRate) {
-        double lastDollarRate = Double.parseDouble(lastDollarExchangeRate.replace(",", "."));
-        double newDollarRate = Double.parseDouble(dollarExchangeRate.replace(",", "."));
-        double variation = Math.abs(newDollarRate - lastDollarRate);
-        BigDecimal roundedVariation = new BigDecimal(variation).setScale(2, RoundingMode.HALF_UP);
-        if (newDollarRate > lastDollarRate) {
+        BigDecimal lastDollarRate = new BigDecimal(lastDollarExchangeRate.replace(",", "."));
+        BigDecimal newDollarRate = new BigDecimal(dollarExchangeRate.replace(",", "."));
+        BigDecimal variation = newDollarRate.subtract(lastDollarRate).abs();
+        BigDecimal variationInCents = variation.multiply(new BigDecimal("100")).setScale(1, RoundingMode.HALF_UP);
+
+        if (newDollarRate.compareTo(lastDollarRate) > 0) {
             LOGGER.info("[{}] BRL to USD rose: {} -> {}", requestId, lastDollarRate, newDollarRate);
-            return new DollarVariationDTO(roundedVariation, true);
+            return new DollarVariationDTO(variationInCents, true);
         }
         LOGGER.info("[{}] BRL to USD fell: {} -> {}", requestId, lastDollarRate, newDollarRate);
-        return new DollarVariationDTO(roundedVariation, false);
+        return new DollarVariationDTO(variationInCents, false);
     }
+
+
 }

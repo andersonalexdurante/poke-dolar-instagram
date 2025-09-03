@@ -52,9 +52,9 @@ public class BedrockService {
 
     public String generateCaption(String requestId, PokemonDTO pokemonData, DollarVariationDTO dollarVariationDTO,
                                   String dollarExchangeRate) {
-        String dollarVariation = String.format("%s %d",
+        String dollarVariation = String.format("%s %s",
                 dollarVariationDTO.isUp() ? "subiu" : "caiu",
-                dollarVariationDTO.variation().multiply(BigDecimal.valueOf(100)).intValue());
+                dollarVariationDTO.variation().toString().replace(".", ","));
 
         LocalDate actualDate = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yy");
@@ -62,7 +62,7 @@ public class BedrockService {
 
         Map<String, PromptVariableValues> variables = Map.of(
                 "dollar_variation", PromptVariableValues.builder().text(dollarVariation).build(),
-                "dollar_price", PromptVariableValues.builder().text(dollarExchangeRate).build(),
+                "dollar_price", PromptVariableValues.builder().text(dollarExchangeRate.substring(0,4)).build(),
                 "day_of_week", PromptVariableValues.builder().text(formattedDate).build(),
                 "pokemon_name", PromptVariableValues.builder().text(pokemonData.name()).build(),
                 "pokemon_types", PromptVariableValues.builder().text(toJson(pokemonData.types())).build(),

@@ -46,7 +46,7 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
         String requestId = UUID.randomUUID().toString();
         MDC.put("requestId", requestId);
 
-        LOGGER.info("[{}] [START] Executing Pokemon Image Generator Lambda", requestId);
+        LOGGER.info("[{}] [START] Executing Pokemon Video Generator Lambda", requestId);
 
         try {
             String dollarExchangeRate = this.dollarService.getDollarExchangeRate(requestId);
@@ -54,8 +54,7 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             Optional<String> lastDollarRate = this.dynamoDBService.getLastDollarRate(requestId);
 
             if (!this.dollarService.dollarRateChanged(lastDollarRate, dollarExchangeRate)) {
-                LOGGER.info("[{}] Dollar rate {} dont changed! The Pokemon #{} has already been published. Skipping",
-                        requestId, dollarExchangeRate, pokedexNumber);
+                LOGGER.info("[{}] Dollar rate {} dont changed! Skipping", requestId, dollarExchangeRate);
                 return null;
             }
 

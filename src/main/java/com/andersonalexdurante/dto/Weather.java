@@ -4,14 +4,12 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Weather {
     CLEAR_SKY("clear sky"),
-    PARTLY_CLOUDY("partly cloudy"),
     OVERCAST("overcast"),
-    MISTY("misty"),
+    SUNNY("sunny"),
     FOGGY("foggy"),
-    LIGHT_DRIZZLE("light drizzle"),
-    HEAVY_RAIN("heavy rain"),
+    RAIN("rain"),
     THUNDERSTORMS("thunderstorms"),
-    HEAVY_SNOWFALL("heavy snowfall"),
+    SNOWFALL("snowfall"),
     STRONG_WIND("strong wind");
 
     private final String value;

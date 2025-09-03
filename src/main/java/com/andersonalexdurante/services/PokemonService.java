@@ -61,7 +61,7 @@ public class PokemonService {
     }
 
     public int getPokedexNumber(String dollarExchangeRate) {
-        int pokedexNumber = Integer.parseInt(dollarExchangeRate.replace(",", ""));
+        int pokedexNumber = Integer.parseInt(dollarExchangeRate.split(",")[1]);
         LOGGER.debug("Calculated Pokedex number: #{}. Dollar Rate: ${}", pokedexNumber, dollarExchangeRate);
         return pokedexNumber;
     }
