@@ -72,10 +72,11 @@ public class VideoService {
             String responseJson = response.payload().asUtf8String();
             LOGGER.debug("[{}] Lambda response received: {}", requestId, responseJson.length());
 
-            if (response.statusCode() != 200) {
-                LOGGER.error("[{}] Python lambda returned error for generating video: {}", requestId,
-                        response.statusCode());
-                throw new VideoException("Python lambda returned error for generating video: " + response.statusCode());
+            Map  responseMap = this.objectMapper.readValue(responseJson, Map.class);
+            Integer statusCode = (Integer) responseMap.get("statusCode");
+            if (statusCode == null || statusCode != 200) {
+                LOGGER.error("[{}] Python lambda returned error for generating video: {}", requestId, statusCode);
+                throw new VideoException("Python lambda returned error for generating video: " + statusCode);
             }
 
             LOGGER.info("[{}] Video generated successfully!", requestId);

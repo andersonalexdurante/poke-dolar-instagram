@@ -65,12 +65,9 @@ public class PokeDolarLambdaHandler implements RequestHandler<Object, Void> {
             DollarVariationDTO dollarVariation = this.dollarService.getDollarVariation(requestId,
                     lastDollarRate.orElse("0"), dollarExchangeRate);
 
-            LOGGER.info("[{}] Generating random options for background image", requestId);
-            RandomSelection randomOptions = this.randomnessService.getRandomOptions(requestId);
-
             LOGGER.info("[{}] Generating image background description with AWS Bedrock", requestId);
             String backgroundImageDescription = this.bedrockService.generateImageBackgroundDescription(requestId,
-                    pokemonData, randomOptions);
+                    pokemonData);
 
             LOGGER.info("[{}] Starting video generation", requestId);
             this.videoService.generatePostVideo(requestId, dollarExchangeRate,

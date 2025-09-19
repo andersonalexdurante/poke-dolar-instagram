@@ -32,18 +32,12 @@ public class BedrockService {
     @Inject
     BedrockRuntimeClient bedrockClient;
 
-
-    public String generateImageBackgroundDescription(String requestId, PokemonDTO pokemonDTO,
-                                                     RandomSelection randomSelection) {
-
+    public String generateImageBackgroundDescription(String requestId, PokemonDTO pokemonDTO) {
         LOGGER.info("[{}] Using prompt: {}", requestId, bedrockImageBackgroundPromptArn);
         Map<String, PromptVariableValues> variables = Map.of(
-                "types", PromptVariableValues.builder().text(toJson(pokemonDTO.types())).build(),
-                "habitat", PromptVariableValues.builder().text(pokemonDTO.habitat()).build(),
-                "time_of_day", PromptVariableValues.builder().text(randomSelection.timeOfDay().getValue()).build(),
-                "season", PromptVariableValues.builder().text(randomSelection.season().getValue()).build(),
-                "weather", PromptVariableValues.builder().text(randomSelection.weather().getValue()).build(),
-                "pokemon_descriptions",  PromptVariableValues.builder().text(toJson(pokemonDTO.descriptions())).build());
+               "pokemon", PromptVariableValues.builder().text(pokemonDTO.name()).build(),
+                "description", PromptVariableValues.builder().text(String.valueOf(pokemonDTO.descriptions())).build()
+        );
 
         String result = sendRequestToBedrock(requestId, this.bedrockImageBackgroundPromptArn, variables);
         LOGGER.info("{}", result);
